@@ -1,0 +1,5 @@
+{
+  "editor.formatOnSave": true,
+  "python.languageServer": "Pylance",
+  "python.formatting.provider": "black"
+}
