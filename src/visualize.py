@@ -1,7 +1,7 @@
 import numpy as np
 from utility import to_torch, from_torch, tril
 import matplotlib.pyplot as plt
-import gaii
+import gaii_cond_linear
 
 
 def imshow(model, datadir=None):  # show_matrix
@@ -19,14 +19,14 @@ def imshow(model, datadir=None):  # show_matrix
 
 
 def simulate(model, datadir=None):  # show_simulate
-    real_x, real_y = gaii.sample_xy(1, model["state_list"])
+    real_x, real_y = gaii_cond_linear.sample_xy(1, model["state_list"])
     _, axes = plt.subplots(2, 1)
 
     def plot(ax, j):
         fake_ys = []
         true_ys = []
         for _ in range(2000):
-            z = gaii.sample_z(1, model["N"])
+            z = gaii_cond_linear.sample_z(1, model["N"])
             fake_y = model["G"](real_x, z)
             fake_ys.append(from_torch(fake_y)[0, j])
             E = np.random.multivariate_normal(
@@ -57,7 +57,7 @@ def simulate(model, datadir=None):  # show_simulate
 
 def mode_check(model, datadir=None):  # show_mode_collapse
     xs = to_torch(np.tile(np.arange(-2.0, 2.0, 0.01), (model["N"], 1))).T
-    zs = gaii.sample_z(len(xs), model["N"])
+    zs = gaii_cond_linear.sample_z(len(xs), model["N"])
     # print(xs.shape, zs.shape)
     ys = model["G"](xs, zs)
     # print(xs)
