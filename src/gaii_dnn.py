@@ -57,12 +57,14 @@ class Discriminator(nn.Module):
         self.activation = nn.ReLU()
         self.size = length * dim
         self.linear1 = nn.Linear(self.size, self.size)
+        self.dropout = nn.Dropout(p=0.2)
         self.linear2 = nn.Linear(self.size, 1)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
         x = x.view(-1, self.size)
         x = self.activation(self.linear1(x))
+        x = self.dropout(x)
         return self.sigmoid(self.linear2(x))
 
 
@@ -95,6 +97,7 @@ def fit_q(state_list, partation, batch_size=800, n_step=20000, length=4, debug=F
     real_label = torch.ones(batch_size, 1, requires_grad=False)
     fake_label = torch.zeros(batch_size, 1, requires_grad=False)
 
+    js_all = []
     failure_check = []
     f_star = lambda t: torch.exp(t - 1)
 
@@ -170,6 +173,7 @@ def fit_q(state_list, partation, batch_size=800, n_step=20000, length=4, debug=F
 
         if i % 100 == 0:
             failure_check.append((i, d_score.item(), g_score.item()))
+            js_all.append((i, js))
 
     return {
         "G": G,
@@ -182,5 +186,6 @@ def fit_q(state_list, partation, batch_size=800, n_step=20000, length=4, debug=F
         "failure_check": pd.DataFrame(
             failure_check, columns=["i", "d_score", "g_score"]
         ).set_index("i"),
+        "js_all": pd.DataFrame(js_all, columns=["i", "js"]).set_index("i"),
         "js": js,
     }

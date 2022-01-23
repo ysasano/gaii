@@ -72,3 +72,10 @@ def failure_check(model, datadir=None):  # show_failure_mode
     model["failure_check"].plot(ylim=[0, 1])
     if datadir:
         plt.savefig(datadir.joinpath("failure_check.png"))
+
+
+def js_all(model, datadir=None):  # show_failure_mode
+    plt.figure()
+    model["js_all"].plot()
+    if datadir:
+        plt.savefig(datadir.joinpath("failure_check.png"))
