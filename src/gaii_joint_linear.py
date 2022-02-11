@@ -32,15 +32,11 @@ class Generator(nn.Module):
         self.seq1 = nn.Sequential(
             nn.Flatten(),
             nn.Linear(z1_size, z1_size),
-            nn.ReLU(),
-            nn.Linear(z1_size, z1_size),
             nn.Unflatten(-1, (length, len(partation[0]))),
         )
 
         self.seq2 = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(z2_size, z2_size),
-            nn.ReLU(),
             nn.Linear(z2_size, z2_size),
             nn.Unflatten(-1, (length, len(partation[1]))),
         )
@@ -89,6 +85,9 @@ def sample_z(batch_size, N, length):
 
 
 def fit_q(state_list, partation, batch_size=800, n_step=20000, length=4, debug=False):
+    # 強制的に長さ2にする
+    length = 2
+
     mode = "GAN"
     # mode = "f-GAN:KL"
     N = sum(len(p) for p in partation)

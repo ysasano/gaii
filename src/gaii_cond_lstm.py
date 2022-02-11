@@ -5,9 +5,8 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from numpy.lib.stride_tricks import sliding_window_view
 
-from utility import from_torch, to_torch, tril
+from utility import to_torch
 
 cuda = torch.cuda.is_available()
 rng = np.random.default_rng()
@@ -22,71 +21,75 @@ def get_invert_permutation(permutation):
 
 
 class Generator(nn.Module):
-    def __init__(self, partation, hidden_size):
+    def __init__(self, length, partation):
         super(Generator, self).__init__()
         self.partation = partation
         self.invert_partation = get_invert_permutation(np.concatenate(partation))
+
         self.lstm1 = nn.LSTM(
-            len(partation[0]) + hidden_size, len(partation[0]), num_layers=2
+            len(partation[0]),
+            len(partation[0]),
+            num_layers=2,
+            batch_first=True,
         )
         self.lstm2 = nn.LSTM(
-            len(partation[1]) + hidden_size, len(partation[1]), num_layers=2
+            len(partation[1]),
+            len(partation[1]),
+            num_layers=2,
+            batch_first=True,
         )
 
+        self.depth = len(partation[0]) + len(partation[1])
+        self.linear_corr = nn.Linear(self.depth, self.depth)
+
     def forward(self, x, z):
-        x_z = torch.cat((x[:, :, self.partation[0]], z), dim=-1)
-        _, (_, cn) = self.lstm1(x_z)
-        hidden1 = torch.squeeze(cn[-1], 0)
+        x1, _ = self.lstm1(x[:, :, self.partation[0]])
+        x2, _ = self.lstm2(x[:, :, self.partation[1]])
+        corr = self.linear_corr(z)
 
-        x_z = torch.cat((x[:, :, self.partation[1]], z), dim=-1)
-        _, (_, cn) = self.lstm2(x_z)
-        hidden2 = torch.squeeze(cn[-1], 0)
-
-        hidden = torch.cat((hidden1, hidden2), dim=-1)
-        hidden = hidden[:, self.invert_partation]
-
-        return torch.unsqueeze(hidden, 0)
+        hidden = torch.cat((x1, x2), dim=-1)
+        hidden = hidden[:, :, self.invert_partation] + corr
+        return hidden.mean(dim=1, keepdim=True)
 
 
 class Discriminator(nn.Module):
-    def __init__(self, size):
+    def __init__(self, length, depth):
         super(Discriminator, self).__init__()
-        self.lstm = nn.LSTM(size, size, num_layers=2)
-        self.fc_out = nn.Linear(size, 1)
-        self.size = size
+        self.lstm = nn.LSTM(depth, depth, num_layers=2, batch_first=True)
+        self.dropout = nn.Dropout(p=0.2)
+        self.linear = nn.Linear(depth, 1)
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, x, y):
-        x_y = torch.cat((x, y), dim=0)
-        _, (_, cn) = self.lstm(x_y)
-        hidden = torch.squeeze(cn[-1], 0)
-        return self.fc_out(hidden)
+        xy = torch.cat((x, y), dim=1)
+        xy, _ = self.lstm(xy)
+        xy = xy.mean(dim=1)
+        xy = self.dropout(xy)
+        return self.sigmoid(self.linear(xy))
 
 
 def sample_xy(batch_size, state_list, length):
-    length_with_y = length + 1
-    idx = rng.choice(len(state_list) - length_with_y - 1, batch_size)
-    idx_span = np.array([np.arange(i, i + length_with_y) for i in idx])
+    idx = rng.choice(len(state_list) - length, batch_size)
+    idx_span = np.array([np.arange(i, i + length) for i in idx])
     seq = to_torch(state_list[idx_span, :])
-    seq = torch.permute(seq, (1, 0, 2))
-    return seq[:-1, :, :], torch.unsqueeze(seq[-1, :, :], 0)
+    return seq[:, :-1, :], torch.unsqueeze(seq[:, -1, :], 1)
 
 
 def sample_z(batch_size, N, length):
-    z = torch.randn(batch_size, N)
-    z = torch.reshape(z, (1, batch_size, N))
-    return z.tile(length, 1, 1)
+    z = torch.randn(batch_size * (length - 1), N)
+    return z.view(batch_size, (length - 1), N)
 
 
-def fit_q(state_list, partation, batch_size=200, n_step=2000, length=20, debug=False):
-    # mode = "GAN"
-    mode = "f-GAN:KL"
+def fit_q(state_list, partation, batch_size=800, n_step=20000, length=4, debug=False):
+    mode = "GAN"
+    # mode = "f-GAN:KL"
     N = sum(len(p) for p in partation)
 
-    G = Generator(partation, N)
-    D = Discriminator(N)
+    G = Generator(length - 1, partation)
+    D = Discriminator(length, N)
     adversarial_loss = nn.BCELoss()
-    d_optimizer = optim.Adam(D.parameters(), lr=1e-3)
-    g_optimizer = optim.Adam(G.parameters(), lr=1e-3)
+    d_optimizer = optim.Adam(D.parameters(), lr=1e-4)
+    g_optimizer = optim.Adam(G.parameters(), lr=1e-4)
     if debug:
         print(G)
         print(D)
@@ -94,6 +97,7 @@ def fit_q(state_list, partation, batch_size=200, n_step=2000, length=20, debug=F
     real_label = torch.ones(batch_size, 1, requires_grad=False)
     fake_label = torch.zeros(batch_size, 1, requires_grad=False)
 
+    js_all = []
     failure_check = []
     f_star = lambda t: torch.exp(t - 1)
 
@@ -171,7 +175,7 @@ def fit_q(state_list, partation, batch_size=200, n_step=2000, length=20, debug=F
 
         if i % 100 == 0:
             failure_check.append((i, d_score.item(), g_score.item()))
-
+            js_all.append((i, js))
     return {
         "G": G,
         "D": D,
@@ -183,5 +187,6 @@ def fit_q(state_list, partation, batch_size=200, n_step=2000, length=20, debug=F
         "failure_check": pd.DataFrame(
             failure_check, columns=["i", "d_score", "g_score"]
         ).set_index("i"),
+        "js_all": pd.DataFrame(js_all, columns=["i", "js"]).set_index("i"),
         "js": js,
     }

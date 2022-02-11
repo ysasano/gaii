@@ -26,34 +26,22 @@ class Generator(nn.Module):
         self.partation = partation
         self.invert_partation = get_invert_permutation(np.concatenate(partation))
 
-        z1_size = len(partation[0]) * length
-        z2_size = len(partation[1]) * length
-
-        self.seq1 = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(z1_size, z1_size),
-            nn.ReLU(),
-            nn.Linear(z1_size, z1_size),
-            nn.Unflatten(-1, (length, len(partation[0]))),
+        self.lstm1 = nn.LSTM(
+            len(partation[0]), len(partation[0]), num_layers=2, batch_first=True
         )
-
-        self.seq2 = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(z2_size, z2_size),
-            nn.ReLU(),
-            nn.Linear(z2_size, z2_size),
-            nn.Unflatten(-1, (length, len(partation[1]))),
+        self.lstm2 = nn.LSTM(
+            len(partation[1]), len(partation[1]), num_layers=2, batch_first=True
         )
 
         self.depth = len(partation[0]) + len(partation[1])
         self.linear_corr = nn.Linear(self.depth, self.depth)
 
     def forward(self, z):
-        x1 = self.seq1(z[:, :, self.partation[0]])
-        x2 = self.seq2(z[:, :, self.partation[1]])
+        z1, _ = self.lstm1(z[:, :, self.partation[0]])
+        z2, _ = self.lstm2(z[:, :, self.partation[1]])
         corr = self.linear_corr(z)
 
-        hidden = torch.cat((x1, x2), dim=-1)
+        hidden = torch.cat((z1, z2), dim=-1)
         hidden = hidden[:, :, self.invert_partation] + corr
 
         return hidden
@@ -62,18 +50,16 @@ class Generator(nn.Module):
 class Discriminator(nn.Module):
     def __init__(self, length, dim):
         super(Discriminator, self).__init__()
-        self.activation = nn.ReLU()
-        self.size = length * dim
-        self.linear1 = nn.Linear(self.size, self.size)
+        self.lstm = nn.LSTM(dim, dim, num_layers=2, batch_first=True)
         self.dropout = nn.Dropout(p=0.2)
-        self.linear2 = nn.Linear(self.size, 1)
+        self.linear = nn.Linear(dim, 1)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
-        x = x.view(-1, self.size)
-        x = self.activation(self.linear1(x))
+        x, _ = self.lstm(x)
+        x = x.mean(dim=1)
         x = self.dropout(x)
-        return self.sigmoid(self.linear2(x))
+        return self.sigmoid(self.linear(x))
 
 
 def sample_x(batch_size, state_list, length):

@@ -4,112 +4,86 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 
-from utility import from_torch, to_torch, tril
+from utility import to_torch
 
 cuda = torch.cuda.is_available()
 rng = np.random.default_rng()
 
 
-class MaskedLinear(nn.Module):
-    def __init__(self, in_features, out_features, mask, device=None, dtype=None):
-        factory_kwargs = {"device": device, "dtype": dtype}
-        super(MaskedLinear, self).__init__()
-        self.in_features = in_features
-        self.out_features = out_features
-        self.mask = mask.detach()
-        self.weight = nn.Parameter(
-            torch.empty((out_features, in_features), **factory_kwargs)
-        )
-        self.register_parameter("bias", None)
-        self.reset_parameters()
-
-    def reset_parameters(self):
-        nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
-
-    def forward(self, input):
-        return F.linear(input, self.weight * self.mask)
-
-    def extra_repr(self):
-        return "in_features={}, out_features={}".format(
-            self.in_features, self.out_features
-        )
+def get_invert_permutation(permutation):
+    permutation = np.array(permutation)
+    invert_permutation = np.empty(permutation.size, dtype=permutation.dtype)
+    for i in np.arange(permutation.size):
+        invert_permutation[permutation[i]] = i
+    return invert_permutation
 
 
 class Generator(nn.Module):
-    def __init__(self, N, mask):
+    def __init__(self, length, partation):
         super(Generator, self).__init__()
-        assert mask.shape == (N, N)
-        self.fc1 = MaskedLinear(N, N, mask.detach())
+        self.partation = partation
+        self.invert_partation = get_invert_permutation(np.concatenate(partation))
 
-        # reparametrization (PRML 演習問題11.5)
-        # lower triangular mask
-        mask2 = tril(N)
-        self.fc2 = MaskedLinear(N, N, mask2)
+        self.seq1 = nn.Linear(len(partation[0]), len(partation[0]))
+        self.seq2 = nn.Linear(len(partation[1]), len(partation[1]))
+
+        self.depth = len(partation[0]) + len(partation[1])
+        self.linear_corr = nn.Linear(self.depth, self.depth)
 
     def forward(self, x, z):
-        if cuda:
-            x = x.cuda()
-            z = z.cuda()
-        return self.fc1(x) + self.fc2(z.detach())
+        x1 = self.seq1(x[:, self.partation[0]])
+        x2 = self.seq2(x[:, self.partation[1]])
+        corr = self.linear_corr(z)
+
+        hidden = torch.cat((x1, x2), dim=-1)
+        hidden = hidden[:, self.invert_partation] + corr
+
+        return hidden
 
 
 class Discriminator(nn.Module):
-    def __init__(self, N):
+    def __init__(self, length, depth):
         super(Discriminator, self).__init__()
-        if N <= 16:
-            self.fc1 = nn.Linear(N * 2, 16)
-            self.fc2 = nn.Linear(16, 1)
-        elif N <= 64:
-            self.fc1 = nn.Linear(N * 2, 32)
-            self.fc2 = nn.Linear(32, 1)
-        else:
-            self.fc1 = nn.Linear(N * 2, 64)
-            self.fc2 = nn.Linear(64, 1)
+        self.activation = nn.ReLU()
+        self.size = depth * length
+        self.linear1 = nn.Linear(self.size, self.size)
+        self.dropout = nn.Dropout(p=0.2)
+        self.linear2 = nn.Linear(self.size, 1)
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, x, y):
-        if cuda:
-            x = x.cuda()
-            y = y.cuda()
-        x_y = torch.hstack((x, y))
-        x_y = torch.tanh(self.fc1(x_y))
-        return torch.sigmoid(self.fc2(x_y))
+        xy = torch.cat((x, y), dim=-1)
+        xy = self.activation(self.linear1(xy))
+        xy = self.dropout(xy)
+        return self.sigmoid(self.linear2(xy))
 
 
-def sample_xy(batch_size, state_list):
-    idx = rng.choice(len(state_list) - 1, batch_size)
-    xs = to_torch(state_list[idx])
-    ys = to_torch(state_list[idx + 1])
-    return [xs, ys]
+def sample_xy(batch_size, state_list, length):
+    idx = rng.choice(len(state_list) - length, batch_size)
+    idx_span = np.array([np.arange(i, i + length) for i in idx])
+    seq = to_torch(state_list[idx_span, :])
+    return seq[:, 0, :], seq[:, 1, :]
 
 
-def sample_z(batch_size, N):
+def sample_z(batch_size, N, length):
     return torch.randn(batch_size, N)
 
 
-def fit_q(state_list, mask, batch_size=200, n_step=2000, debug=False):
-    # mode = "GAN"
-    mode = "f-GAN:KL"
-    N = mask.shape[0]
-    cuda = torch.cuda.is_available()
-    if cuda:
-        mask = to_torch(mask).cuda()
-    else:
-        mask = to_torch(mask)
+def fit_q(state_list, partation, batch_size=800, n_step=20000, length=4, debug=False):
+    # 強制的に長さ2にする
+    length = 2
 
-    G = Generator(N, mask)
-    D = Discriminator(N)
+    mode = "GAN"
+    # mode = "f-GAN:KL"
+    N = sum(len(p) for p in partation)
+
+    G = Generator(length, partation)
+    D = Discriminator(length, N)
     adversarial_loss = nn.BCELoss()
-    d_optimizer = optim.Adam(D.parameters(), lr=1e-3)
-    g_optimizer = optim.Adam(G.parameters(), lr=1e-3)
-    if cuda:
-        G.cuda()
-        D.cuda()
-        adversarial_loss.cuda()
-    Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
-
+    d_optimizer = optim.Adam(D.parameters(), lr=1e-4)
+    g_optimizer = optim.Adam(G.parameters(), lr=1e-4)
     if debug:
         print(G)
         print(D)
@@ -117,6 +91,7 @@ def fit_q(state_list, mask, batch_size=200, n_step=2000, debug=False):
     real_label = torch.ones(batch_size, 1, requires_grad=False)
     fake_label = torch.zeros(batch_size, 1, requires_grad=False)
 
+    js_all = []
     failure_check = []
     f_star = lambda t: torch.exp(t - 1)
 
@@ -127,12 +102,12 @@ def fit_q(state_list, mask, batch_size=200, n_step=2000, debug=False):
         d_optimizer.zero_grad()
 
         # fake xとfake yの生成
-        fake_x, _ = sample_xy(batch_size, state_list)
-        z = sample_z(batch_size, N)
+        fake_x, _ = sample_xy(batch_size, state_list, length)
+        z = sample_z(batch_size, N, length)
         fake_y = G(fake_x, z)
 
         # real xとreal yの生成
-        real_x, real_y = sample_xy(batch_size, state_list)
+        real_x, real_y = sample_xy(batch_size, state_list, length)
 
         # リアルのサンプルとニセのサンプルを正しく見分けられるように学習
         D_fake = D(fake_x, fake_y.detach())
@@ -155,12 +130,12 @@ def fit_q(state_list, mask, batch_size=200, n_step=2000, debug=False):
         g_optimizer.zero_grad()
 
         # fake xとfake yの生成
-        fake_x, _ = sample_xy(batch_size, state_list)
-        z = sample_z(batch_size, N)
+        fake_x, _ = sample_xy(batch_size, state_list, length)
+        z = sample_z(batch_size, N, length)
         fake_y = G(fake_x, z)
 
         # real xとreal yの生成
-        real_x, real_y = sample_xy(batch_size, state_list)
+        real_x, real_y = sample_xy(batch_size, state_list, length)
 
         # Discriminatorを騙すように学習
         D_fake = D(fake_x, fake_y)
@@ -192,24 +167,21 @@ def fit_q(state_list, mask, batch_size=200, n_step=2000, debug=False):
                 % (i, n_step, js, g_loss.item(), d_loss.item())
             )
 
-        if i % 1000 == 0 and debug:
-            w = from_torch(G.state_dict()["fc1.weight"] * mask)
-            print(w)
-            L = from_torch(G.state_dict()["fc2.weight"]) * from_torch(tril(N))
-            print(L @ L.T)
-
         if i % 100 == 0:
             failure_check.append((i, d_score.item(), g_score.item()))
+            js_all.append((i, js))
 
     return {
         "G": G,
         "D": D,
         "N": N,
         "batch_size": batch_size,
-        "mask": mask,
+        "partation": partation,
+        "length": length,
         "state_list": state_list,
         "failure_check": pd.DataFrame(
             failure_check, columns=["i", "d_score", "g_score"]
         ).set_index("i"),
+        "js_all": pd.DataFrame(js_all, columns=["i", "js"]).set_index("i"),
         "js": js,
     }

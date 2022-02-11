@@ -48,15 +48,15 @@ class Generator(nn.Module):
         self.depth = len(partation[0]) + len(partation[1])
         self.linear_corr = nn.Linear(self.depth, self.depth)
 
-    def forward(self, z):
-        x1 = self.seq1(z[:, :, self.partation[0]])
-        x2 = self.seq2(z[:, :, self.partation[1]])
+    def forward(self, x, z):
+        x1 = self.seq1(x[:, :, self.partation[0]])
+        x2 = self.seq2(x[:, :, self.partation[1]])
         corr = self.linear_corr(z)
 
         hidden = torch.cat((x1, x2), dim=-1)
         hidden = hidden[:, :, self.invert_partation] + corr
 
-        return hidden
+        return hidden.mean(dim=1, keepdim=True)
 
 
 class Discriminator(nn.Module):
@@ -69,23 +69,25 @@ class Discriminator(nn.Module):
         self.linear2 = nn.Linear(self.size, 1)
         self.sigmoid = nn.Sigmoid()
 
-    def forward(self, x):
-        x = x.view(-1, self.size)
-        x = self.activation(self.linear1(x))
-        x = self.dropout(x)
-        return self.sigmoid(self.linear2(x))
+    def forward(self, x, y):
+        xy = torch.cat((x, y), dim=1)
+        xy = xy.view(-1, self.size)
+        xy = self.activation(self.linear1(xy))
+        xy = self.dropout(xy)
+        xy = self.sigmoid(self.linear2(xy))
+        return xy
 
 
-def sample_x(batch_size, state_list, length):
+def sample_xy(batch_size, state_list, length):
     idx = rng.choice(len(state_list) - length, batch_size)
     idx_span = np.array([np.arange(i, i + length) for i in idx])
     seq = to_torch(state_list[idx_span, :])
-    return seq
+    return seq[:, :-1, :], torch.unsqueeze(seq[:, -1, :], 1)
 
 
 def sample_z(batch_size, N, length):
-    z = torch.randn(batch_size * length, N)
-    return z.view(batch_size, length, N)
+    z = torch.randn(batch_size * (length - 1), N)
+    return z.view(batch_size, length - 1, N)
 
 
 def fit_q(state_list, partation, batch_size=800, n_step=20000, length=4, debug=False):
@@ -93,7 +95,7 @@ def fit_q(state_list, partation, batch_size=800, n_step=20000, length=4, debug=F
     # mode = "f-GAN:KL"
     N = sum(len(p) for p in partation)
 
-    G = Generator(length, partation)
+    G = Generator(length - 1, partation)
     D = Discriminator(length, N)
     adversarial_loss = nn.BCELoss()
     d_optimizer = optim.Adam(D.parameters(), lr=1e-4)
@@ -115,16 +117,17 @@ def fit_q(state_list, partation, batch_size=800, n_step=20000, length=4, debug=F
         # ====================
         d_optimizer.zero_grad()
 
-        # fake xの生成
+        # fake xとfake yの生成
+        fake_x, _ = sample_xy(batch_size, state_list, length)
         z = sample_z(batch_size, N, length)
-        fake_x = G(z)
+        fake_y = G(fake_x, z)
 
-        # real xの生成
-        real_x = sample_x(batch_size, state_list, length)
+        # real xとreal yの生成
+        real_x, real_y = sample_xy(batch_size, state_list, length)
 
         # リアルのサンプルとニセのサンプルを正しく見分けられるように学習
-        D_fake = D(fake_x.detach())
-        D_real = D(real_x)
+        D_fake = D(fake_x, fake_y.detach())
+        D_real = D(real_x, real_y)
         if mode == "GAN":
             fake_loss = adversarial_loss(D_fake, fake_label)
             real_loss = adversarial_loss(D_real, real_label)
@@ -142,16 +145,17 @@ def fit_q(state_list, partation, batch_size=800, n_step=20000, length=4, debug=F
         # ====================
         g_optimizer.zero_grad()
 
-        # fake xの生成
+        # fake xとfake yの生成
+        fake_x, _ = sample_xy(batch_size, state_list, length)
         z = sample_z(batch_size, N, length)
-        fake_x = G(z)
+        fake_y = G(fake_x, z)
 
-        # real xの生成
-        real_x = sample_x(batch_size, state_list, length)
+        # real xとreal yの生成
+        real_x, real_y = sample_xy(batch_size, state_list, length)
 
         # Discriminatorを騙すように学習
-        D_fake = D(fake_x)
-        D_real = D(real_x)
+        D_fake = D(fake_x, fake_y)
+        D_real = D(real_x, real_y)
         if mode == "GAN":
             fake_loss = adversarial_loss(D_fake, real_label)
             real_loss = adversarial_loss(D_real, fake_label)
