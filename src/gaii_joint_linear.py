@@ -26,28 +26,28 @@ class Generator(nn.Module):
         self.partation = partation
         self.invert_partation = get_invert_permutation(np.concatenate(partation))
 
-        z1_size = len(partation[0]) * length
-        z2_size = len(partation[1]) * length
+        size1 = len(partation[0]) * length
+        size2 = len(partation[1]) * length
 
         self.seq1 = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(z1_size, z1_size),
+            nn.Linear(size1, size1),
             nn.Unflatten(-1, (length, len(partation[0]))),
         )
 
         self.seq2 = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(z2_size, z2_size),
+            nn.Linear(size2, size2),
             nn.Unflatten(-1, (length, len(partation[1]))),
         )
 
         self.depth = len(partation[0]) + len(partation[1])
         self.linear_corr = nn.Linear(self.depth, self.depth)
 
-    def forward(self, z):
-        x1 = self.seq1(z[:, :, self.partation[0]])
-        x2 = self.seq2(z[:, :, self.partation[1]])
-        corr = self.linear_corr(z)
+    def forward(self, z1, z2):
+        x1 = self.seq1(z1[:, :, self.partation[0]])
+        x2 = self.seq2(z1[:, :, self.partation[1]])
+        corr = self.linear_corr(z2)
 
         hidden = torch.cat((x1, x2), dim=-1)
         hidden = hidden[:, :, self.invert_partation] + corr
@@ -115,8 +115,9 @@ def fit_q(state_list, partation, batch_size=800, n_step=20000, length=4, debug=F
         d_optimizer.zero_grad()
 
         # fake xの生成
-        z = sample_z(batch_size, N, length)
-        fake_x = G(z)
+        z1 = sample_z(batch_size, N, length)
+        z2 = sample_z(batch_size, N, length)
+        fake_x = G(z1, z2)
 
         # real xの生成
         real_x = sample_x(batch_size, state_list, length)
@@ -142,8 +143,9 @@ def fit_q(state_list, partation, batch_size=800, n_step=20000, length=4, debug=F
         g_optimizer.zero_grad()
 
         # fake xの生成
-        z = sample_z(batch_size, N, length)
-        fake_x = G(z)
+        z1 = sample_z(batch_size, N, length)
+        z2 = sample_z(batch_size, N, length)
+        fake_x = G(z1, z2)
 
         # real xの生成
         real_x = sample_x(batch_size, state_list, length)

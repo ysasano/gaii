@@ -36,12 +36,12 @@ class Generator(nn.Module):
         self.depth = len(partation[0]) + len(partation[1])
         self.linear_corr = nn.Linear(self.depth, self.depth)
 
-    def forward(self, z):
-        z1, _ = self.lstm1(z[:, :, self.partation[0]])
-        z2, _ = self.lstm2(z[:, :, self.partation[1]])
-        corr = self.linear_corr(z)
+    def forward(self, z1, z2):
+        z1_1, _ = self.lstm1(z1[:, :, self.partation[0]])
+        z1_2, _ = self.lstm2(z1[:, :, self.partation[1]])
+        corr = self.linear_corr(z2)
 
-        hidden = torch.cat((z1, z2), dim=-1)
+        hidden = torch.cat((z1_1, z1_2), dim=-1)
         hidden = hidden[:, :, self.invert_partation] + corr
 
         return hidden
@@ -102,8 +102,9 @@ def fit_q(state_list, partation, batch_size=800, n_step=20000, length=4, debug=F
         d_optimizer.zero_grad()
 
         # fake xの生成
-        z = sample_z(batch_size, N, length)
-        fake_x = G(z)
+        z1 = sample_z(batch_size, N, length)
+        z2 = sample_z(batch_size, N, length)
+        fake_x = G(z1, z2)
 
         # real xの生成
         real_x = sample_x(batch_size, state_list, length)
@@ -129,8 +130,9 @@ def fit_q(state_list, partation, batch_size=800, n_step=20000, length=4, debug=F
         g_optimizer.zero_grad()
 
         # fake xの生成
-        z = sample_z(batch_size, N, length)
-        fake_x = G(z)
+        z1 = sample_z(batch_size, N, length)
+        z2 = sample_z(batch_size, N, length)
+        fake_x = G(z1, z2)
 
         # real xの生成
         real_x = sample_x(batch_size, state_list, length)
