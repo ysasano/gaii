@@ -67,15 +67,37 @@ def mode_check(model, datadir=None):  # show_mode_collapse
         plt.savefig(datadir.joinpath("mode_check.png"))
 
 
-def failure_check(model, datadir=None):  # show_failure_mode
+def failure_check(model, datadir=None):
     plt.figure()
     model["failure_check"].plot(ylim=[0, 1])
     if datadir:
         plt.savefig(datadir.joinpath("failure_check.png"))
 
 
-def js_all(model, datadir=None):  # show_failure_mode
+def js_all(model, datadir=None):
     plt.figure()
     model["js_all"].plot()
     if datadir:
         plt.savefig(datadir.joinpath("failure_check.png"))
+
+
+def FID_all(model, datadir=None):
+    plt.figure()
+    model["FID_all"].plot()
+    if datadir:
+        plt.savefig(datadir.joinpath("FID.png"))
+
+
+def loss_all(model, datadir=None):
+    plt.figure()
+    model["loss_all"].plot()
+    if datadir:
+        plt.savefig(datadir.joinpath("loss.png"))
+
+
+def plot_all_result(pd_result, datadir=None):
+    plt.figure()
+    ax = pd_result.plot()
+    ax.tick_params(axis="x", rotation=70)
+    if datadir:
+        plt.savefig(datadir.joinpath("loss.png"))

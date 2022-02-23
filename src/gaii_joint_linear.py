@@ -104,6 +104,8 @@ def fit_q(state_list, partation, batch_size=800, n_step=20000, length=4, debug=F
     real_label = torch.ones(batch_size, 1, requires_grad=False)
     fake_label = torch.zeros(batch_size, 1, requires_grad=False)
 
+    FID_all = []
+    loss_all = []
     js_all = []
     failure_check = []
     f_star = lambda t: torch.exp(t - 1)
@@ -182,7 +184,9 @@ def fit_q(state_list, partation, batch_size=800, n_step=20000, length=4, debug=F
 
         if i % 100 == 0:
             failure_check.append((i, d_score.item(), g_score.item()))
+            FID_all.append((i, calc_FID(fake_x.item(), real_x.item())))
             js_all.append((i, js))
+            loss_all.append((i, d_loss, g_loss))
 
     return {
         "G": G,
@@ -195,6 +199,10 @@ def fit_q(state_list, partation, batch_size=800, n_step=20000, length=4, debug=F
         "failure_check": pd.DataFrame(
             failure_check, columns=["i", "d_score", "g_score"]
         ).set_index("i"),
+        "FID_all": pd.DataFrame(FID_all, columns=["i", "FID"]).set_index("i"),
         "js_all": pd.DataFrame(js_all, columns=["i", "js"]).set_index("i"),
+        "loss_all": pd.DataFrame(loss_all, columns=["i", "g_loss", "d_loss"]).set_index(
+            "i"
+        ),
         "js": js,
     }

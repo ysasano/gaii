@@ -87,15 +87,20 @@ def coupled_lorenz_system(length=1000, C=3):
 
 def iterate_data(length=1000):
     state_lists = [
-        var1(dim=1, length=length),
-        var1(dim=2, length=length),
-        var1(dim=3, length=length),
-        var4(dim=1, length=length),
-        var4(dim=2, length=length),
-        var4(dim=3, length=length),
-        nonlinear_var3(length=length),
-        coupled_lorenz_system(length=length),
+        {"name": "VAR(1, 1D)", "data": var1(dim=1, length=length)},
+        {"name": "VAR(1, 2D)", "data": var1(dim=2, length=length)},
+        {"name": "VAR(1, 3D)", "data": var1(dim=3, length=length)},
+        {"name": "VAR(4, 1D)", "data": var4(dim=1, length=length)},
+        {"name": "VAR(4, 2D)", "data": var4(dim=2, length=length)},
+        {"name": "VAR(4, 3D)", "data": var4(dim=3, length=length)},
+        {"name": "NLVAR(3, 3D)", "data": nonlinear_var3(length=length)},
+        {"name": "HENON", "data": coupled_henon_maps(length=length)},
+        {"name": "LORENZ", "data": coupled_lorenz_system(length=length)},
     ]
 
     for st1, st2 in combinations(state_lists, 2):
-        yield [(st1.shape[1], st2.shape[1]), np.concatenate(st1, st2)]
+        yield [
+            (st1["name"], st2["name"]),
+            (st1["data"].shape[1], st2["data"].shape[1]),
+            np.concatenate([st1["data"], st2["data"]], axis=1),
+        ]
