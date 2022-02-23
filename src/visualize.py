@@ -101,3 +101,4 @@ def plot_all_result(pd_result, datadir=None):
     ax.tick_params(axis="x", rotation=70)
     if datadir:
         plt.savefig(datadir.joinpath("loss.png"))
+

@@ -6,18 +6,10 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from utility import to_torch
+from utility import calc_FID, from_torch, to_torch, get_invert_permutation
 
 cuda = torch.cuda.is_available()
 rng = np.random.default_rng()
-
-
-def get_invert_permutation(permutation):
-    permutation = np.array(permutation)
-    invert_permutation = np.empty(permutation.size, dtype=permutation.dtype)
-    for i in np.arange(permutation.size):
-        invert_permutation[permutation[i]] = i
-    return invert_permutation
 
 
 class Generator(nn.Module):
@@ -91,7 +83,15 @@ def sample_z(batch_size, N, length):
     return z.view(batch_size, length, N)
 
 
-def fit_q(state_list, partation, batch_size=800, n_step=20000, length=4, use_time_invariant_term=False, debug=False):
+def fit_q(
+    state_list,
+    partation,
+    batch_size=800,
+    n_step=20000,
+    length=4,
+    use_time_invariant_term=False,
+    debug=False,
+):
     mode = "GAN"
     # mode = "f-GAN:KL"
     N = sum(len(p) for p in partation)
@@ -188,9 +188,9 @@ def fit_q(state_list, partation, batch_size=800, n_step=20000, length=4, use_tim
 
         if i % 100 == 0:
             failure_check.append((i, d_score.item(), g_score.item()))
-            FID_all.append((i, calc_FID(fake_x.item(), real_x.item())))
+            #FID_all.append((i, calc_FID(from_torch(fake_x), from_torch(real_x))))
             js_all.append((i, js))
-            loss_all.append((i, d_loss, g_loss))
+            loss_all.append((i, d_loss.item(), g_loss.item()))
 
     return {
         "G": G,

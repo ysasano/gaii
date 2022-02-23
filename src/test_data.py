@@ -85,6 +85,10 @@ def coupled_lorenz_system(length=1000, C=3):
     return odeint(lorenz_df_dt, y0, t)[:, [0, 3, 6]]
 
 
+def create_partation(dim1, dim2):
+    return [range(dim1), range(dim1, dim1 + dim2)]
+
+
 def iterate_data(length=1000):
     state_lists = [
         {"name": "VAR(1, 1D)", "data": var1(dim=1, length=length)},
@@ -101,6 +105,6 @@ def iterate_data(length=1000):
     for st1, st2 in combinations(state_lists, 2):
         yield [
             (st1["name"], st2["name"]),
-            (st1["data"].shape[1], st2["data"].shape[1]),
+            create_partation(st1["data"].shape[1], st2["data"].shape[1]),
             np.concatenate([st1["data"], st2["data"]], axis=1),
         ]

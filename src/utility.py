@@ -27,10 +27,20 @@ def calc_MI(state_list):
 
 
 def calc_FID(fake_x, real_x):
-    fake_mean = np.mean(fake_x)
-    fake_cov = np.cov(fake_x)
-    real_mean = np.mean(real_x)
-    real_cov = np.cov(real_x)
+    dim = fake_x.shape[1] * fake_x.shape[2]
+    fake_mean = np.mean(fake_x.reshape((-1, dim)), axis=0)
+    fake_cov = np.cov(fake_x.reshape((-1, dim)).T, )
+    real_mean = np.mean(real_x.reshape((-1, dim)), axis=0)
+    real_cov = np.cov(real_x.reshape((-1, dim)).T)
+    print(fake_mean.shape, real_mean.shape)
     return cdist(fake_mean, real_mean) + np.trace(
         fake_cov + real_cov - 2 * sqrtm(fake_cov @ real_cov)
     )
+
+
+def get_invert_permutation(permutation):
+    permutation = np.array(permutation)
+    invert_permutation = np.empty(permutation.size, dtype=permutation.dtype)
+    for i in np.arange(permutation.size):
+        invert_permutation[permutation[i]] = i
+    return invert_permutation
