@@ -3,9 +3,17 @@ import torch.optim as optim
 from numpy.linalg import det
 import numpy as np
 from utility import to_torch, from_torch
+from statsmodels.tsa.api import VAR
+import mip
 
 
-def fit_q(a, sigma_e, sigma_x, mask=np.array([[1, 0], [0, 1]]), verbose=False):
+def fit_q_reestimate(state_list, partation, debug=False):
+    var_model = VAR(state_list).fit(trend="n", maxlags=1)
+    mask = mip.partation_to_mask(partation)
+    return fit_q(var_model.params, var_model.sigma_u, mask, debug=debug)
+
+
+def fit_q(a, sigma_e, sigma_x, mask=np.array([[1, 0], [0, 1]]), debug=False):
     A = to_torch(a)
     Mask = to_torch(mask)
     SigmaE = to_torch(sigma_e)
@@ -60,7 +68,7 @@ def fit_q(a, sigma_e, sigma_x, mask=np.array([[1, 0], [0, 1]]), verbose=False):
             phi_G = 1 / 2 * np.log(det(SigmaE_val) / det(sigma_e))
             phig_list.append(phi_G)
 
-        if verbose:
+        if debug:
             print("==result retry={}==".format(retry))
             print("loss=", loss_value)
             print("A=", from_torch(baseA_))

@@ -35,3 +35,11 @@ def generate_masks(nodes):
         mask = adj + np.identity(len(nodes))
         mask_list.append(mask)
     return mask_list, candidate_list
+
+
+def partation_to_mask(partation):
+    nodes = sorted(np.concatenate(partation))
+    G = nx.complete_graph(nodes)
+    G_r = split_graph(G, partation)
+    adj = nx.adjacency_matrix(G_r, nodelist=nodes).todense()
+    return adj + np.identity(len(nodes))
