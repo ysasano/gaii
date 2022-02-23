@@ -29,13 +29,13 @@ class Generator(nn.Module):
         self.lstm1 = nn.LSTM(
             len(partation[0]),
             len(partation[0]),
-            num_layers=2,
+            num_layers=1,
             batch_first=True,
         )
         self.lstm2 = nn.LSTM(
             len(partation[1]),
             len(partation[1]),
-            num_layers=2,
+            num_layers=1,
             batch_first=True,
         )
 
@@ -55,7 +55,7 @@ class Generator(nn.Module):
 class Discriminator(nn.Module):
     def __init__(self, length, depth):
         super(Discriminator, self).__init__()
-        self.lstm = nn.LSTM(depth, depth, num_layers=2, batch_first=True)
+        self.lstm = nn.LSTM(depth, depth, num_layers=1, batch_first=True)
         self.dropout = nn.Dropout(p=0.2)
         self.linear = nn.Linear(depth, 1)
         self.sigmoid = nn.Sigmoid()

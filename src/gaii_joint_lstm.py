@@ -27,10 +27,10 @@ class Generator(nn.Module):
         self.invert_partation = get_invert_permutation(np.concatenate(partation))
 
         self.lstm1 = nn.LSTM(
-            len(partation[0]), len(partation[0]), num_layers=2, batch_first=True
+            len(partation[0]), len(partation[0]), num_layers=1, batch_first=True
         )
         self.lstm2 = nn.LSTM(
-            len(partation[1]), len(partation[1]), num_layers=2, batch_first=True
+            len(partation[1]), len(partation[1]), num_layers=1, batch_first=True
         )
 
         self.depth = len(partation[0]) + len(partation[1])
@@ -50,7 +50,7 @@ class Generator(nn.Module):
 class Discriminator(nn.Module):
     def __init__(self, length, dim):
         super(Discriminator, self).__init__()
-        self.lstm = nn.LSTM(dim, dim, num_layers=2, batch_first=True)
+        self.lstm = nn.LSTM(dim, dim, num_layers=1, batch_first=True)
         self.dropout = nn.Dropout(p=0.2)
         self.linear = nn.Linear(dim, 1)
         self.sigmoid = nn.Sigmoid()
