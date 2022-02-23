@@ -21,10 +21,11 @@ def get_invert_permutation(permutation):
 
 
 class Generator(nn.Module):
-    def __init__(self, length, partation):
+    def __init__(self, length, partation, use_time_invariant_term):
         super(Generator, self).__init__()
         self.partation = partation
         self.invert_partation = get_invert_permutation(np.concatenate(partation))
+        self.use_time_invariant_term = use_time_invariant_term
 
         size1 = len(partation[0]) * length
         size2 = len(partation[1]) * length
@@ -54,7 +55,9 @@ class Generator(nn.Module):
         corr = self.linear_corr(z2)
 
         hidden = torch.cat((x1, x2), dim=-1)
-        hidden = hidden[:, :, self.invert_partation] + corr
+        hidden = hidden[:, :, self.invert_partation]
+        if self.use_time_invariant_term:
+            hidden += corr
 
         return hidden
 
@@ -88,12 +91,12 @@ def sample_z(batch_size, N, length):
     return z.view(batch_size, length, N)
 
 
-def fit_q(state_list, partation, batch_size=800, n_step=20000, length=4, debug=False):
+def fit_q(state_list, partation, batch_size=800, n_step=20000, length=4, use_time_invariant_term=False, debug=False):
     mode = "GAN"
     # mode = "f-GAN:KL"
     N = sum(len(p) for p in partation)
 
-    G = Generator(length, partation)
+    G = Generator(length, partation, use_time_invariant_term)
     D = Discriminator(length, N)
     adversarial_loss = nn.BCELoss()
     d_optimizer = optim.Adam(D.parameters(), lr=1e-4)
