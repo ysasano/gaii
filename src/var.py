@@ -19,12 +19,3 @@ def generate(initiali_state, A, Sigma, N=1000):
 def reestimate_var(state_list):
     ar = VAR(state_list).fit(trend="n", maxlags=1)
     return {"A": ar.params, "SigmaE": ar.sigma_u}
-
-
-def reestimate_var2(state_list):
-    ar0 = AR(state_list[:, 0]).fit(trend="n", maxlag=1)
-    ar1 = AR(state_list[:, 1]).fit(trend="n", maxlag=1)
-    return {
-        "A": np.array([[ar0.params[0], 0], [0, ar1.params[0]]]),
-        "SigmaE": np.array([[ar0.sigma2, 0], [0, ar0.sigma2]]),
-    }

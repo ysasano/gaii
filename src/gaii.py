@@ -1,0 +1,6 @@
+import gaii_joint_dense
+import gaii_joint_linear
+import gaii_joint_lstm
+import gaii_cond_dense
+import gaii_cond_linear
+import gaii_cond_lstm
