@@ -85,7 +85,7 @@ def coupled_lorenz_system(length=1000, C=3):
     return odeint(lorenz_df_dt, y0, t)[:, [0, 3, 6]]
 
 
-def generate(length=1000):
+def iterate_data(length=1000):
     state_lists = [
         var1(dim=1, length=length),
         var1(dim=2, length=length),
@@ -98,4 +98,4 @@ def generate(length=1000):
     ]
 
     for st1, st2 in combinations(state_lists, 2):
-        yield np.concatenate(st1, st2)
+        yield [(st1.shape[1], st2.shape[1]), np.concatenate(st1, st2)]
