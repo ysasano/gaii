@@ -2,6 +2,7 @@ import numpy as np
 from utility import to_torch, from_torch, tril
 import matplotlib.pyplot as plt
 import gaii_cond_linear
+import torch
 
 
 def imshow(model, datadir=None):  # show_matrix
@@ -71,6 +72,7 @@ def failure_check(model, datadir=None):
     plt.figure()
     model["failure_check"].plot(ylim=[0, 1])
     if datadir:
+        model["failure_check"].to_pickle(datadir.joinpath(f"failure_check.pkl"))
         plt.savefig(datadir.joinpath("failure_check.png"))
 
 
@@ -78,13 +80,15 @@ def js_all(model, datadir=None):
     plt.figure()
     model["js_all"].plot()
     if datadir:
-        plt.savefig(datadir.joinpath("failure_check.png"))
+        model["js_all"].to_pickle(datadir.joinpath(f"js.pkl"))
+        plt.savefig(datadir.joinpath("js.png"))
 
 
 def FID_all(model, datadir=None):
     plt.figure()
     model["FID_all"].plot()
     if datadir:
+        model["FID_all"].to_pickle(datadir.joinpath(f"FID.pkl"))
         plt.savefig(datadir.joinpath("FID.png"))
 
 
@@ -92,13 +96,14 @@ def loss_all(model, datadir=None):
     plt.figure()
     model["loss_all"].plot()
     if datadir:
+        model["loss_all"].to_pickle(datadir.joinpath(f"loss.pkl"))
         plt.savefig(datadir.joinpath("loss.png"))
 
 
-def plot_all_result(pd_result, datadir=None):
+def plot_result(pd_result, datadir=None):
     plt.figure()
     ax = pd_result.plot()
     ax.tick_params(axis="x", rotation=70)
     if datadir:
-        plt.savefig(datadir.joinpath("loss.png"))
-
+        pd_result.to_pickle(datadir.joinpath(f"result.pkl"))
+        plt.savefig(datadir.joinpath("result.png"), bbox_inches="tight")

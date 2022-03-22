@@ -10,7 +10,9 @@ import mip
 def fit_q_reestimate(state_list, partation, debug=False):
     var_model = VAR(state_list).fit(trend="n", maxlags=1)
     mask = mip.partation_to_mask(partation)
-    return fit_q(var_model.params, var_model.sigma_u, mask, debug=debug)
+    print(partation, mask)
+    sigma_x = np.cov(state_list.T)
+    return fit_q(var_model.params, var_model.sigma_u, sigma_x, mask, debug=debug)
 
 
 def fit_q(a, sigma_e, sigma_x, mask=np.array([[1, 0], [0, 1]]), debug=False):

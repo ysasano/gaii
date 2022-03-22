@@ -4,7 +4,6 @@ import numpy as np
 from numpy.linalg import det
 from statsmodels.tsa.api import VAR
 
-from scipy.spatial.distance import cdist
 from scipy.linalg import sqrtm
 
 
@@ -23,17 +22,18 @@ def tril(N):
 def calc_MI(state_list):
     var_model = VAR(state_list).fit(trend="n", maxlags=1)
     SigmaX = np.cov(state_list.T)
-    return 1 / 2 * np.log(det(SigmaX) / det(var_model.param_u))
+    return 1 / 2 * np.log(det(SigmaX) / det(var_model.sigma_u))
 
 
 def calc_FID(fake_x, real_x):
     dim = fake_x.shape[1] * fake_x.shape[2]
     fake_mean = np.mean(fake_x.reshape((-1, dim)), axis=0)
-    fake_cov = np.cov(fake_x.reshape((-1, dim)).T, )
+    fake_cov = np.cov(
+        fake_x.reshape((-1, dim)).T,
+    )
     real_mean = np.mean(real_x.reshape((-1, dim)), axis=0)
     real_cov = np.cov(real_x.reshape((-1, dim)).T)
-    print(fake_mean.shape, real_mean.shape)
-    return cdist(fake_mean, real_mean) + np.trace(
+    return (fake_mean - real_mean) @ (fake_mean - real_mean) + np.trace(
         fake_cov + real_cov - 2 * sqrtm(fake_cov @ real_cov)
     )
 

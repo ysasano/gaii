@@ -97,6 +97,9 @@ def fit_q(
     if debug:
         print(G)
         print(D)
+    if cuda:
+        G.cuda()
+        D.cuda()
 
     real_label = torch.ones(batch_size, 1, requires_grad=False)
     fake_label = torch.zeros(batch_size, 1, requires_grad=False)
@@ -181,7 +184,7 @@ def fit_q(
 
         if i % 100 == 0:
             failure_check.append((i, d_score.item(), g_score.item()))
-            #FID_all.append((i, calc_FID(from_torch(fake_x), from_torch(real_x))))
+            FID_all.append((i, calc_FID(from_torch(fake_x), from_torch(real_x))))
             js_all.append((i, js))
             loss_all.append((i, d_loss.item(), g_loss.item()))
 

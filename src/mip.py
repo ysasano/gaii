@@ -37,6 +37,11 @@ def generate_masks(nodes):
     return mask_list, candidate_list
 
 
+def generate_candidate_list(dim):
+    _, candidate_list = generate_masks(set(range(dim)))
+    return [(list(p[0]), list(p[1])) for p in candidate_list]
+
+
 def partation_to_mask(partation):
     nodes = sorted(np.concatenate(partation))
     G = nx.complete_graph(nodes)

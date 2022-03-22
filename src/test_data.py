@@ -50,22 +50,22 @@ def nonlinear_var3(length=1000):
 
 
 def coupled_henon_maps(dim=1, length=1000, C=0.3):
-    state_list = np.zeros((dim, length))
+    state_list = np.zeros((length, dim))
     state_list[0, 0] = 0
-    state_list[0, 1] = 0
+    state_list[1, 0] = 0
     for t in range(2, length):
-        state_list[0, t] = 1.4
-        state_list[0, t] -= state_list[0, t - 1] ** 2
-        state_list[0, t] -= 0.3 * state_list[0, t - 2]
-    for i, t in product(range(1, dim), range(2, length)):
-        state_list[i, t] = 1.4
-        state_list[i, t] -= C * state_list[i - 1, t - 1]
-        state_list[i, t] -= (1 - C) * state_list[i, t - 1]
-        state_list[i, t] += 0.3 * state_list[i, t - 2]
+        state_list[t, 0] = 1.4
+        state_list[t, 0] -= state_list[t - 1, 0] ** 2
+        state_list[t, 0] += 0.3 * state_list[t - 2, 0]
+    for t, i in product(range(2, length), range(1, dim)):
+        state_list[t, i] = 1.4
+        state_list[t, i] -= C * state_list[t - 1, i - 1]
+        state_list[t, i] -= (1 - C) * state_list[t - 1, i]
+        state_list[t, i] += 0.3 * state_list[t - 2, i]
     return state_list
 
 
-def coupled_lorenz_system(length=1000, C=3):
+def coupled_lorenz_system(length=1000, C=3, T=1):
     def lorenz_df_dt(state, _):
         x1, y1, z1, x2, y2, z2, x3, y3, z3 = state
         return [
@@ -81,15 +81,11 @@ def coupled_lorenz_system(length=1000, C=3):
         ]
 
     y0 = [0.01, 0, 0, 0.02, 0, 0, 0.03, 0, 0]
-    t = np.linspace(0, 1, length)
+    t = np.linspace(0, T, length)
     return odeint(lorenz_df_dt, y0, t)[:, [0, 3, 6]]
 
 
-def create_partation(dim1, dim2):
-    return [range(dim1), range(dim1, dim1 + dim2)]
-
-
-def iterate_data(length=1000):
+def generate_data_list(length=10000):
     state_lists = [
         {"name": "VAR(1, 1D)", "data": var1(dim=1, length=length)},
         {"name": "VAR(1, 2D)", "data": var1(dim=2, length=length)},
@@ -102,9 +98,11 @@ def iterate_data(length=1000):
         {"name": "LORENZ", "data": coupled_lorenz_system(length=length)},
     ]
 
+    result = []
     for st1, st2 in combinations(state_lists, 2):
-        yield [
-            (st1["name"], st2["name"]),
-            create_partation(st1["data"].shape[1], st2["data"].shape[1]),
+        result.append([
+            "-".join([st1["name"], st2["name"]]),
+            st1["data"].shape[1] + st2["data"].shape[1],
             np.concatenate([st1["data"], st2["data"]], axis=1),
-        ]
+        ])
+    return result
