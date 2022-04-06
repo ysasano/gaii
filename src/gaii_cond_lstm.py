@@ -6,7 +6,13 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from utility import calc_FID, from_torch, to_torch, get_invert_permutation
+from utility import (
+    calc_FID,
+    from_torch,
+    to_torch,
+    get_invert_permutation,
+    normalize_state_list,
+)
 
 cuda = torch.cuda.is_available()
 rng = np.random.default_rng()
@@ -36,6 +42,7 @@ class Generator(nn.Module):
         self.linear_corr = nn.Linear(self.depth, self.depth)
 
     def forward(self, x, z):
+        x = normalize_state_list(x)
         x1, _ = self.lstm1(x[:, :, self.partation[0]])
         x2, _ = self.lstm2(x[:, :, self.partation[1]])
         corr = self.linear_corr(z)
@@ -58,6 +65,7 @@ class Discriminator(nn.Module):
 
     def forward(self, x, y):
         xy = torch.cat((x, y), dim=1)
+        xy = normalize_state_list(xy)
         xy, _ = self.lstm(xy)
         xy = xy.mean(dim=1)
         xy = self.dropout(xy)
