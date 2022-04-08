@@ -1,0 +1,26 @@
+#/bin/bash
+
+info () {
+  echo '\[\e[32m\][INFO] $0\[\e[0m\]''
+}
+
+check_experiment () {
+  info '実験ログのタイムスタンプ'
+  stat -c %Y experiment.log
+  echo ''
+
+  info '直近の実験ログ'
+  tail -n50 experiment.log
+}
+
+exec_experiment () {
+  poetry run python src/gaii.py > experiment.log
+}
+
+setup () {
+  # pythonインストール
+  # poetryインストール
+  poetry install
+}
+
+"$@"
