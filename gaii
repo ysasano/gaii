@@ -1,12 +1,12 @@
 #/bin/bash
 
 info () {
-  echo '\[\e[32m\][INFO] $0\[\e[0m\]'
+  printf "\033[32m[INFO] $1\033[0m\n"
 }
 
 check_experiment () {
   info '実験ログのタイムスタンプ'
-  stat -c %Y experiment.log
+  poetry run python -u src/stat.py experiment.log
   echo ''
 
   info '直近の実験ログ'
