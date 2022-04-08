@@ -18,8 +18,8 @@ exec_experiment () {
 }
 
 setup () {
-  # pythonインストール
-  # poetryインストール
+  # python 3.9.10インストール
+  # poetry 1.1.11インストール
   poetry install
 }
 
