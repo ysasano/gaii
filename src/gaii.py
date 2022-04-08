@@ -77,7 +77,7 @@ def experiment_gaii(trial_mode=False, debug=False):
     experiment_dir = create_experiment_dir()
 
     # データとモデルを作成 (分割はデータに依存するためここでは作成しない)
-    data_list = test_data.generate_data_list(data_list)
+    data_list = test_data.generate_data_list()
     model_list = generate_model_list()
 
     # (データ, 分割, モデル)の三重ループ
@@ -128,7 +128,7 @@ def experiment_gaii(trial_mode=False, debug=False):
 
         # データごとの結果のリストを保存
         save_result(
-            result_by_data=result_by_data,
+            result_all=result_by_data,
             candidate_list=candidate_list,
             data_dir=experiment_dir / f"data={data_name}",
         )
