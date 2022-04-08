@@ -7,6 +7,7 @@ import gaii_cond_linear
 import gaii_cond_lstm
 import utility
 import mip
+import fire
 import torch
 
 from functools import partial
@@ -134,3 +135,7 @@ def experiment_gaii(trial_mode=False, debug=False):
         )
         if trial_mode:
             break
+
+
+if __name__ == "__main__":
+    fire.Fire(experiment_gaii)
