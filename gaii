@@ -14,7 +14,7 @@ check_experiment () {
 }
 
 exec_experiment () {
-  poetry run python src/gaii.py > experiment.log
+  poetry run python -u src/gaii.py | tee experiment.log
 }
 
 setup () {
