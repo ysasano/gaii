@@ -192,7 +192,9 @@ def fit_q(
 
         if i % 100 == 0:
             failure_check.append((i, d_score.item(), g_score.item()))
-            FID_all.append((i, calc_FID(from_torch(fake_x), from_torch(real_x))))
+            fake_xy = np.concatenate([from_torch(fake_x), from_torch(fake_y)], axis=1)
+            real_xy = np.concatenate([from_torch(real_x), from_torch(real_y)], axis=1)
+            FID_all.append((i, calc_FID(fake_xy, real_xy)))
             js_all.append((i, js))
             loss_all.append((i, d_loss.item(), g_loss.item()))
 
