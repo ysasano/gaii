@@ -85,6 +85,10 @@ def coupled_lorenz_system(length=1000, C=3, T=1):
     return odeint(lorenz_df_dt, y0, t)[:, [0, 3, 6]]
 
 
+def normalize_state_list(state_list):
+    return (state_list - np.mean(state_list)) / np.std(state_list)
+
+
 def generate_data_list(length=10000):
     state_lists = [
         {"name": "VAR(1, 1D)", "data": var1(dim=1, length=length)},
@@ -98,11 +102,18 @@ def generate_data_list(length=10000):
         {"name": "LORENZ", "data": coupled_lorenz_system(length=length)},
     ]
 
+    state_lists = [
+        {"name": st["name"], "data": normalize_state_list(st["data"])}
+        for st in state_lists
+    ]
+
     result = []
     for st1, st2 in combinations(state_lists, 2):
-        result.append([
-            "-".join([st1["name"], st2["name"]]),
-            st1["data"].shape[1] + st2["data"].shape[1],
-            np.concatenate([st1["data"], st2["data"]], axis=1),
-        ])
+        result.append(
+            [
+                "-".join([st1["name"], st2["name"]]),
+                st1["data"].shape[1] + st2["data"].shape[1],
+                np.concatenate([st1["data"], st2["data"]], axis=1),
+            ]
+        )
     return result

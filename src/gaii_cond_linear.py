@@ -11,7 +11,6 @@ from utility import (
     from_torch,
     to_torch,
     get_invert_permutation,
-    normalize_state_list,
 )
 
 cuda = torch.cuda.is_available()
@@ -32,7 +31,6 @@ class Generator(nn.Module):
         self.linear_corr = nn.Linear(self.depth, self.depth)
 
     def forward(self, x, z):
-        x = normalize_state_list(x)
         x1 = self.seq1(x[:, self.partation[0]])
         x2 = self.seq2(x[:, self.partation[1]])
         corr = self.linear_corr(z)
@@ -57,7 +55,6 @@ class Discriminator(nn.Module):
 
     def forward(self, x, y):
         xy = torch.cat((x, y), dim=-1)
-        xy = normalize_state_list(xy)
         xy = self.activation(self.linear1(xy))
         xy = self.dropout(xy)
         return self.sigmoid(self.linear2(xy))

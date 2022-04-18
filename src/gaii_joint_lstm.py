@@ -11,7 +11,6 @@ from utility import (
     from_torch,
     to_torch,
     get_invert_permutation,
-    normalize_state_list,
 )
 
 cuda = torch.cuda.is_available()
@@ -57,7 +56,6 @@ class Discriminator(nn.Module):
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
-        x = normalize_state_list(x)
         x, _ = self.lstm(x)
         x = x.mean(dim=1)
         x = self.dropout(x)

@@ -19,10 +19,6 @@ def tril(N):
     return to_torch(np.tril(np.ones((N, N))))
 
 
-def normalize_state_list(state_list):
-    return (state_list - state_list.mean()) / torch.std(state_list)
-
-
 def calc_MI(state_list):
     var_model = VAR(state_list).fit(trend="n", maxlags=1)
     SigmaX = np.cov(state_list.T)
