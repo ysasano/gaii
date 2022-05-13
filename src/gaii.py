@@ -46,7 +46,10 @@ def generate_model_list():
             use_time_invariant_term=h["use_time_invariant_term"],
             length=h["length"],
         )
-        result.append([h["modules"].__name__, model_fn])
+        name = h["modules"].__name__
+        name += "_time_invariant=" + str(h["use_time_invariant_term"])
+        name += "_length=" + str(h["length"])
+        result.append([name, model_fn])
     return result
 
 

@@ -10,13 +10,12 @@ from itertools import combinations, product
 
 
 def var1(dim=1, length=1000):
-
     A_ = np.eye(dim, dim) * 0.2 + np.eye(dim, dim, k=1) * 0.2
     SigmaE = np.eye(dim, dim)
 
     state_list = np.zeros((length, dim))
     for i in range(1, length):
-        state_list[i, :] = A_ @ state_list[i - 3, :]
+        state_list[i, :] = A_ @ state_list[i - 1, :]
         state_list[i, :] += multivariate_normal([0] * dim, SigmaE, size=1)[0]
     return state_list
 
@@ -43,13 +42,13 @@ def nonlinear_var3(length=1000):
             * (1 - state_list[i - 1, :] ** 2)
             * np.exp(-state_list[i - 1, :] ** 2)
         )
-        state_list[i, 1] += 0.5 * state_list[i - 1, 0] * state_list[i - 2, 0]
-        state_list[i, 2] += 0.3 * state_list[i - 1, 0] + 0.5 * state_list[i - 2, 0] ** 2
+        state_list[i, 1] += 0.5 * state_list[i - 1, 0] * state_list[i - 1, 1]
+        state_list[i, 2] += 0.3 * state_list[i - 1, 1] + 0.5 * state_list[i - 1, 0] ** 2
         state_list[i, :] += 0.4 * multivariate_normal([0] * dim, SigmaE, size=1)[0]
     return state_list
 
 
-def coupled_henon_maps(dim=1, length=1000, C=0.3):
+def coupled_henon_maps(dim=3, length=1000, C=0.3):
     state_list = np.zeros((length, dim))
     state_list[0, 0] = 0
     state_list[1, 0] = 0
@@ -59,8 +58,9 @@ def coupled_henon_maps(dim=1, length=1000, C=0.3):
         state_list[t, 0] += 0.3 * state_list[t - 2, 0]
     for t, i in product(range(2, length), range(1, dim)):
         state_list[t, i] = 1.4
-        state_list[t, i] -= C * state_list[t - 1, i - 1]
-        state_list[t, i] -= (1 - C) * state_list[t - 1, i]
+        state_list[t, i] -= (
+            C * state_list[t - 1, i - 1] + (1 - C) * state_list[t - 1, i]
+        ) ** 2
         state_list[t, i] += 0.3 * state_list[t - 2, i]
     return state_list
 
