@@ -10,7 +10,7 @@ from itertools import combinations, product
 
 
 def var1(dim=1, length=1000):
-    A_ = np.eye(dim, dim) * 0.2 + np.eye(dim, dim, k=1) * 0.2
+    A_ = np.eye(dim, dim) * 0.45 + np.eye(dim, dim, k=1) * 0.45
     SigmaE = np.eye(dim, dim)
 
     state_list = np.zeros((length, dim))
@@ -21,12 +21,12 @@ def var1(dim=1, length=1000):
 
 
 def var4(dim=1, length=1000):
-    A_ = np.eye(dim, dim) * 0.2 + np.eye(dim, dim, k=1) * 0.2
+    A_ = np.eye(dim, dim) * 0.45 + np.eye(dim, dim, k=1) * 0.45
     SigmaE = np.eye(dim, dim)
     state_list = np.zeros((length, dim))
-    for i in range(3, length):
-        state_list[i, :] = A_ @ state_list[i - 3, :]
-        state_list[i, :] += -A_ @ state_list[i - 2, :]
+    for i in range(4, length):
+        state_list[i, :] = A_ @ state_list[i - 4, :]
+        state_list[i, :] += -A_ @ state_list[i - 3, :]
         state_list[i, :] += multivariate_normal([0] * dim, SigmaE, size=1)[0]
     return state_list
 
@@ -65,7 +65,7 @@ def coupled_henon_maps(dim=3, length=1000, C=0.3):
     return state_list
 
 
-def coupled_lorenz_system(length=1000, C=3, T=1):
+def coupled_lorenz_system(length=1000, C=3, T=10):
     def lorenz_df_dt(state, _):
         x1, y1, z1, x2, y2, z2, x3, y3, z3 = state
         return [
