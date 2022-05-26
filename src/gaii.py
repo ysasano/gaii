@@ -36,7 +36,7 @@ def generate_model_list():
         gaii_cond_lstm,
     ]
     hyperparams = product_dict(
-        modules=modules, use_time_invariant_term=[True, False], length=[4, 8, 16]
+        modules=modules, use_time_invariant_term=[True, False], length=[2, 4, 8]
     )
 
     result = []
@@ -73,7 +73,7 @@ def save_and_visualize_model(model, model_dir):
 def save_result(result_all, candidate_list, data_dir):
     result_pd = pd.DataFrame.from_records(result_all, index=candidate_list)
     data_dir.mkdir(parents=True, exist_ok=True)
-    visualize.plot_result(result_pd, data_dir)
+    visualize.plot_result_all(result_pd, data_dir)
 
 
 def experiment_gaii(trial_mode=False, debug=False):

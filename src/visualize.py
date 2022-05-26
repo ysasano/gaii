@@ -99,11 +99,24 @@ def loss_all(model, datadir=None):
         model["loss_all"].to_pickle(datadir.joinpath(f"loss.pkl"))
         plt.savefig(datadir.joinpath("loss.png"))
 
+def plot_result_all(pd_result, datadir=None):
+    # 全件をplot
+    plot_result(pd_result, datadir, "all")
 
-def plot_result(pd_result, datadir=None):
+    # GeoiiとMIを除外したGAIIのみでplot
+    gaii_only = [col for col in pd_result.columns if "gaii" in col]
+    plot_result(pd_result[gaii_only], datadir, "gaii_only")
+
+    # 要素ごとにplot
+    for col in pd_result.columns:
+        plot_result(pd_result[col], datadir, col)
+
+
+def plot_result(pd_result, datadir=None, suffix=""):
     plt.figure()
     ax = pd_result.plot()
     ax.tick_params(axis="x", rotation=70)
+    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0)
     if datadir:
         pd_result.to_pickle(datadir.joinpath(f"result.pkl"))
-        plt.savefig(datadir.joinpath("result.png"), bbox_inches="tight")
+        plt.savefig(datadir.joinpath(f"result_{suffix}.png"), bbox_inches="tight")
