@@ -119,6 +119,7 @@ def fit_q(
     loss_all = []
     js_all = []
     failure_check = []
+    js_ema = None
     f_star = lambda t: torch.exp(t - 1)
 
     for i in range(n_step):
@@ -183,6 +184,12 @@ def fit_q(
         elif mode == "f-GAN:KL":
             js = -d_loss.item()
 
+        if js_ema is None:
+            js_ema = js
+        else:
+            alpha = 0.001
+            js_ema = alpha * js + (1 - alpha) * js_ema
+
         # 崩壊モードチェック
         g_score = D_fake.mean()
         d_score = 1 / 2 * D_real.mean() + 1 / 2 * (1 - D_fake.mean())
@@ -196,7 +203,7 @@ def fit_q(
         if i % 100 == 0:
             failure_check.append((i, d_score.item(), g_score.item()))
             FID_all.append((i, calc_FID(from_torch(fake_x), from_torch(real_x))))
-            js_all.append((i, js))
+            js_all.append((i, js, js_ema))
             loss_all.append((i, d_loss.item(), g_loss.item()))
 
     return {
@@ -211,9 +218,9 @@ def fit_q(
             failure_check, columns=["i", "d_score", "g_score"]
         ).set_index("i"),
         "FID_all": pd.DataFrame(FID_all, columns=["i", "FID"]).set_index("i"),
-        "js_all": pd.DataFrame(js_all, columns=["i", "js"]).set_index("i"),
+        "js_all": pd.DataFrame(js_all, columns=["i", "js", "js_ema"]).set_index("i"),
         "loss_all": pd.DataFrame(loss_all, columns=["i", "g_loss", "d_loss"]).set_index(
             "i"
         ),
-        "js": js,
+        "js": js_ema,
     }
