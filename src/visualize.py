@@ -66,6 +66,8 @@ def mode_check(model, datadir=None):  # show_mode_collapse
     plt.plot(from_torch(xs)[:, 0], from_torch(ys)[:, 0])
     if datadir:
         plt.savefig(datadir.joinpath("mode_check.png"))
+    plt.clf()
+    plt.close()
 
 
 def failure_check(model, datadir=None):
@@ -74,6 +76,8 @@ def failure_check(model, datadir=None):
     if datadir:
         model["failure_check"].to_pickle(datadir.joinpath(f"failure_check.pkl"))
         plt.savefig(datadir.joinpath("failure_check.png"))
+    plt.clf()
+    plt.close()
 
 
 def js_all(model, datadir=None):
@@ -82,6 +86,8 @@ def js_all(model, datadir=None):
     if datadir:
         model["js_all"].to_pickle(datadir.joinpath(f"js.pkl"))
         plt.savefig(datadir.joinpath("js.png"))
+    plt.clf()
+    plt.close()
 
 
 def FID_all(model, datadir=None):
@@ -90,6 +96,8 @@ def FID_all(model, datadir=None):
     if datadir:
         model["FID_all"].to_pickle(datadir.joinpath(f"FID.pkl"))
         plt.savefig(datadir.joinpath("FID.png"))
+    plt.clf()
+    plt.close()
 
 
 def loss_all(model, datadir=None):
@@ -98,6 +106,9 @@ def loss_all(model, datadir=None):
     if datadir:
         model["loss_all"].to_pickle(datadir.joinpath(f"loss.pkl"))
         plt.savefig(datadir.joinpath("loss.png"))
+    plt.clf()
+    plt.close()
+
 
 def plot_result_all(pd_result, datadir=None):
     # 全件をplot
@@ -116,7 +127,9 @@ def plot_result(pd_result, datadir=None, suffix=""):
     plt.figure()
     ax = pd_result.plot()
     ax.tick_params(axis="x", rotation=70)
-    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0)
+    ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left", borderaxespad=0)
     if datadir:
         pd_result.to_pickle(datadir.joinpath(f"result.pkl"))
         plt.savefig(datadir.joinpath(f"result_{suffix}.png"), bbox_inches="tight")
+    plt.clf()
+    plt.close()
