@@ -110,6 +110,13 @@ def loss_all(model, datadir=None):
     plt.close()
 
 
+def visualize_model(model, datadir=None):
+    failure_check(model, datadir)
+    js_all(model, datadir)
+    loss_all(model, datadir)
+    FID_all(model, datadir)
+
+
 def plot_result_all(pd_result, datadir=None):
     # 全件をplot
     plot_result(pd_result, datadir, "all")
