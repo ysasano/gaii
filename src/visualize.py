@@ -1,5 +1,8 @@
 import numpy as np
 from utility import to_torch, from_torch, tril
+import matplotlib
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import gaii_cond_linear
 import torch
