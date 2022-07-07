@@ -5,6 +5,7 @@ import gaii_joint_lstm
 import gaii_cond_dense
 import gaii_cond_linear
 import gaii_cond_lstm
+from jinja2 import pass_context
 import utility
 import mip
 import fire
@@ -80,16 +81,18 @@ def new_process(func):
 
 
 def save_and_visualize_model(model, model_dir):
-    model_dir.mkdir(parents=True, exist_ok=True)
-    torch.save(model["G"].state_dict(), model_dir / "generator.pth")
-    torch.save(model["D"].state_dict(), model_dir / "discriminator.pth")
-    new_process(visualize.visualize_model)(model, model_dir)
+    pass
+    #model_dir.mkdir(parents=True, exist_ok=True)
+    #torch.save(model["G"].state_dict(), model_dir / "generator.pth")
+    #torch.save(model["D"].state_dict(), model_dir / "discriminator.pth")
+    # new_process(visualize.visualize_model)(model, model_dir)
 
 
 def save_result(result_all, candidate_list, data_dir):
-    result_pd = pd.DataFrame.from_records(result_all, index=candidate_list)
-    data_dir.mkdir(parents=True, exist_ok=True)
-    new_process(visualize.plot_result_all)(result_pd, data_dir)
+    pass
+    #result_pd = pd.DataFrame.from_records(result_all, index=candidate_list)
+    #data_dir.mkdir(parents=True, exist_ok=True)
+    # new_process(visualize.plot_result_all)(result_pd, data_dir)
 
 
 def experiment_gaii(trial_mode=False, debug=False):
