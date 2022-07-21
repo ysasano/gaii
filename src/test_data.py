@@ -89,31 +89,20 @@ def normalize_state_list(state_list):
     return (state_list - np.mean(state_list)) / np.std(state_list)
 
 
-def generate_data_list(length=10000):
-    state_lists = [
-        {"name": "VAR(1, 1D)", "data": var1(dim=1, length=length)},
-        {"name": "VAR(1, 2D)", "data": var1(dim=2, length=length)},
-        {"name": "VAR(1, 3D)", "data": var1(dim=3, length=length)},
-        {"name": "VAR(4, 1D)", "data": var4(dim=1, length=length)},
-        {"name": "VAR(4, 2D)", "data": var4(dim=2, length=length)},
-        {"name": "VAR(4, 3D)", "data": var4(dim=3, length=length)},
-        {"name": "NLVAR(3, 3D)", "data": nonlinear_var3(length=length)},
-        {"name": "HENON", "data": coupled_henon_maps(length=length)},
-        {"name": "LORENZ", "data": coupled_lorenz_system(length=length)},
-    ]
-
-    state_lists = [
-        {"name": st["name"], "data": normalize_state_list(st["data"])}
-        for st in state_lists
-    ]
-
-    result = []
-    for st1, st2 in combinations(state_lists, 2):
-        result.append(
-            [
-                "-".join([st1["name"], st2["name"]]),
-                st1["data"].shape[1] + st2["data"].shape[1],
-                np.concatenate([st1["data"], st2["data"]], axis=1),
-            ]
-        )
-    return result
+def load_state_list(param):
+    length = 10000
+    state_lists = {
+        "VAR(1, 1D)": lambda: var1(dim=1, length=length),
+        "VAR(1, 2D)": lambda: var1(dim=2, length=length),
+        "VAR(1, 3D)": lambda: var1(dim=3, length=length),
+        "VAR(4, 1D)": lambda: var4(dim=1, length=length),
+        "VAR(4, 2D)": lambda: var4(dim=2, length=length),
+        "VAR(4, 3D)": lambda: var4(dim=3, length=length),
+        "NLVAR(3, 3D)": lambda: nonlinear_var3(length=length),
+        "HENON": lambda: coupled_henon_maps(length=length),
+        "LORENZ": lambda: coupled_lorenz_system(length=length),
+    }
+    st1 = state_lists[param["state_list1"]]()
+    st2 = state_lists[param["state_list2"]]()
+    state_list = np.concatenate([st1, st2], axis=1)
+    return state_list

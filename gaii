@@ -4,6 +4,10 @@ info () {
   printf "\033[32m[INFO] $1\033[0m\n"
 }
 
+create_param_file () {
+  poetry run python -u src/create_param_file.py
+}
+
 check_experiment () {
   info '実験ログのタイムスタンプ'
   poetry run python -u src/stat.py experiment.log
@@ -14,7 +18,15 @@ check_experiment () {
 }
 
 exec_experiment () {
-  poetry run python -u src/gaii.py | tee experiment.log
+  ls data/exp_gaii_div/$1/*/setting.json | \
+    xargs -I{} poetry run python -u src/gaii.py --param_filename={} | \
+    tee experiment.log
+}
+
+summary () {
+  ls data/exp_gaii_div/$1/*/entropy.txt | \
+    xargs -I{} cat "{}" > "data/exp_gaii_div/$1/entropy.txt"
+  poetry run python -u src/create_summary.py --experiment_dir=data/exp_gaii_div/$1/
 }
 
 setup () {
