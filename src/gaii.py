@@ -5,6 +5,7 @@ import gaii_joint_lstm
 import gaii_cond_dense
 import gaii_cond_linear
 import gaii_cond_lstm
+import torch
 import utility
 import fire
 import json
@@ -36,18 +37,10 @@ def load_model(params):
 
 
 def save_and_visualize_model(model, model_dir):
-    pass
-    # model_dir.mkdir(parents=True, exist_ok=True)
-    # torch.save(model["G"].state_dict(), model_dir / "generator.pth")
-    # torch.save(model["D"].state_dict(), model_dir / "discriminator.pth")
-    # new_process(visualize.visualize_model)(model, model_dir)
-
-
-def save_result(result_all, candidate_list, data_dir):
-    pass
-    # result_pd = pd.DataFrame.from_records(result_all, index=candidate_list)
-    # data_dir.mkdir(parents=True, exist_ok=True)
-    # new_process(visualize.plot_result_all)(result_pd, data_dir)
+    model_dir.mkdir(parents=True, exist_ok=True)
+    torch.save(model["G"].state_dict(), model_dir / "generator.pth")
+    torch.save(model["D"].state_dict(), model_dir / "discriminator.pth")
+    visualize.visualize_model(model, model_dir)
 
 
 def save_entropy(param, entropy):
@@ -66,12 +59,12 @@ def experiment_gaii(param):
     model_fn = load_model(param)
     state_list = test_data.load_state_list(param)
     partation = param["partation"]
-    result = model_fn(state_list, partation, debug=param["debug"], n_step=100)
+    result = model_fn(state_list, partation, debug=param["debug"], n_step=20000)
 
     # 学習結果の可視化・保存
     save_and_visualize_model(
         model=result,
-        model_dir=param["experiment_dir"],
+        model_dir=Path(param["experiment_dir"]),
     )
     save_entropy(param, result["js"])
 
