@@ -3,7 +3,6 @@ import itertools
 import json
 from pathlib import Path
 import fire
-
 import mip
 
 
@@ -32,9 +31,9 @@ def create_state_list_param():
         param["state_list2"] = st2
         param["data_name"] = f"{st1}-{st2}"
         dim = d1 + d2
-        for partation in mip.generate_candidate_list(dim):
-            param["partation"] = partation
-            yield param
+        partations = list(mip.generate_candidate_list(dim))
+        for partation in partations:
+            yield {"partation": partation} | param
 
 
 def create_model_list_param():
@@ -63,7 +62,11 @@ def create_param():
     state_list_param = list(create_state_list_param())
     model_list_param = list(create_model_list_param())
     for st_param, m_param in itertools.product(state_list_param, model_list_param):
-        name = f"data={st_param['data_name']}_partation={st_param['partation']}_model={m_param['model_name']}"
+        name = f"data={st_param['data_name']}" \
+            + f"_partation={st_param['partation']}" \
+            + f"_model={m_param['model_name']}" \
+            + f"_use_time_invariant_term={m_param['use_time_invariant_term']}" \
+            + f"_length={m_param['length']}"
         param = {
             "type": "gaii",
             "experiment_dir": create_experiment_dir(now, name),
