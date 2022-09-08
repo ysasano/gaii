@@ -1,3 +1,4 @@
+from random import sample
 from torchvision import datasets
 import numpy as np
 from PIL import Image
@@ -16,14 +17,14 @@ def sample_sign(length, rparam):
     sign = np.zeros((length, 2))
     past = np.random.choice([1, -1], size=(2,))
     sign[0, :] = past
-    for i in range(1, length - 1):
+    for i in range(1, length):
         curr = [0, 0]
-        if past[0] == -1 and past[1] == -1:
-            curr[0] = -1
-            curr[1] = np.random.choice([1, -1], p=[rparam, 1 - rparam])
-        else:
+        if past[0] == 1 and past[1] == 1:
             curr[0] = 1
-            curr[1] = np.random.choice([1, -1], p=[1 - rparam, rparam])
+            curr[1] = np.random.choice([-1, 1], p=[rparam, 1 - rparam])
+        else:
+            curr[0] = -1
+            curr[1] = np.random.choice([-1, 1], p=[1 - rparam, rparam])
         sign[i, :] = curr
         past = curr
     return sign
@@ -118,4 +119,5 @@ def move_bound(length, batch_size, sign):
 
 
 # print([(x, y) for x, y in move_bound(10, 2)])
-main()
+# main()
+print(sample_sign(100, 0.25))
