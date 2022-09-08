@@ -15,6 +15,7 @@ gaiiフォルダに移動し、下記のコマンドを実行
 
 # 実験の実行
 ```
+./gaii create_param_file
 ./gaii exec_experiment
 ```
 
