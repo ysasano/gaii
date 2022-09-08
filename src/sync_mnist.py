@@ -12,23 +12,6 @@ train_dataset = datasets.MNIST(
 ).data.numpy()
 
 
-def sample_sign(length, rparam):
-    sign = np.zeros((length, 2))
-    past = np.random.choice([1, -1], size=(2,))
-    sign[0, :] = past
-    for i in range(1, length - 1):
-        curr = [0, 0]
-        if past[0] == -1 and past[1] == -1:
-            curr[0] = -1
-            curr[1] = np.random.choice([1, -1], p=[rparam, 1 - rparam])
-        else:
-            curr[0] = 1
-            curr[1] = np.random.choice([1, -1], p=[1 - rparam, rparam])
-        sign[i, :] = curr
-        past = curr
-    return sign
-
-
 def get_images(batch_size, length, image_size, xs, ys, digit, digit_size):
     image = np.ones((batch_size, length, image_size, image_size), dtype=np.uint8) * 255
     for batch_idx in range(batch_size):
@@ -42,20 +25,18 @@ def get_images(batch_size, length, image_size, xs, ys, digit, digit_size):
 
 
 def main():
-    length = 40
+    length = 80
     image_size = 64
     digit_size = 28
     batch_size = 5
-    rparam = 0.1
     digit1 = train_dataset[:batch_size]
     digit2 = train_dataset[batch_size : batch_size * 2]
-    sign = sample_sign(length, rparam)
-    xs1, ys1 = get_random_trajectory(
-        batch_size, length, image_size, digit_size, sign[:, 0], move_bound
+    xs1, ys1, event = get_random_trajectory(
+        batch_size, length, image_size, digit_size, move_bound, event=None
     )
     images1 = get_images(batch_size, length, image_size, xs1, ys1, digit1, digit_size)
-    xs2, ys2 = get_random_trajectory(
-        batch_size, length, image_size, digit_size, sign[:, 1], move_bound
+    xs2, ys2, _ = get_random_trajectory(
+        batch_size, length, image_size, digit_size, move_bound, event=event
     )
     images2 = get_images(batch_size, length, image_size, xs2, ys2, digit2, digit_size)
     images_cat = np.concatenate((images1, images2), axis=3)
@@ -74,47 +55,62 @@ def main():
     )
 
 
-def get_random_trajectory(batch_size, length, image_size, digit_size, sign, move_fn):
+def get_random_trajectory(batch_size, length, image_size, digit_size, move_fn, event):
     canvas_size = image_size - digit_size - 1
     trajectory_x = np.zeros((length, batch_size))
     trajectory_y = np.zeros((length, batch_size))
+    trajectory_o = np.zeros((length, batch_size))
+    if event is None:
+        event = np.zeros((length, batch_size))
 
-    for i, (x, y) in enumerate(move_fn(length, batch_size, sign)):
+    for i, (x, y, o) in enumerate(move_fn(length, batch_size, event)):
         trajectory_x[i, :] = x
         trajectory_y[i, :] = y
+        trajectory_o[i, :] = o
 
     trajectory_x = (trajectory_x * canvas_size).astype(np.int32)
     trajectory_y = (trajectory_y * canvas_size).astype(np.int32)
 
-    return trajectory_x, trajectory_y
+    return trajectory_x, trajectory_y, trajectory_o
 
 
-def move_bound(length, batch_size, sign):
+def move_bound(length, batch_size, event):
     theta = np.random.rand(batch_size) * 2 * np.pi
     x = np.random.rand(batch_size)
     y = np.random.rand(batch_size)
-    step_length = 0.2
+    step_length = 0.1
     v_x = np.sin(theta)
     v_y = np.cos(theta)
 
     for i in range(length):
-        x += v_x * step_length * sign[i]
-        y += v_y * step_length * sign[i]
+        x += v_x * step_length
+        y += v_y * step_length
+        out_event = np.zeros((batch_size,))
         for j in range(batch_size):
+            if event[i, j] == 1:
+                e = np.random.choice((0, 1))
+                v_x[j] = v_x[j] * +1 if e else -1
+                v_y[j] = v_y[j] * -1 if e else +1
+
             if x[j] <= 0:
                 x[j] = 0
                 v_x[j] = -v_x[j]
+                out_event[j] = 1
             elif x[j] >= 1:
                 x[j] = 1
                 v_x[j] = -v_x[j]
+                out_event[j] = 1
 
             if y[j] <= 0:
                 y[j] = 0
                 v_y[j] = -v_y[j]
+                out_event[j] = 1
             elif y[j] >= 1:
                 y[j] = 1
                 v_y[j] = -v_y[j]
-        yield x, y
+                out_event[j] = 1
+
+        yield x, y, out_event
 
 
 # print([(x, y) for x, y in move_bound(10, 2)])
