@@ -31,6 +31,7 @@ def main():
     batch_size = 5
     digit1 = train_dataset[:batch_size]
     digit2 = train_dataset[batch_size : batch_size * 2]
+    digit3 = train_dataset[batch_size * 2 : batch_size * 3]
     xs1, ys1, event = get_random_trajectory(
         batch_size, length, image_size, digit_size, move_bound, event=None
     )
@@ -39,6 +40,13 @@ def main():
         batch_size, length, image_size, digit_size, move_round, event=event
     )
     images2 = get_images(batch_size, length, image_size, xs2, ys2, digit2, digit_size)
+
+    np.random.shuffle(event)
+    xs3, ys3, _ = get_random_trajectory(
+        batch_size, length, image_size, digit_size, move_round, event=event
+    )
+    images3 = get_images(batch_size, length, image_size, xs3, ys3, digit3, digit_size)
+
     images_cat = np.concatenate((images1, images2), axis=3)
     images_flat = np.reshape(images_cat, (-1, image_size, image_size * 2))
 
@@ -46,7 +54,22 @@ def main():
     for image in images_flat:
         images_pil.append(Image.fromarray(image).convert("P"))
     images_pil[0].save(
-        "data/image.gif",
+        "data/image_sync.gif",
+        save_all=True,
+        append_images=images_pil[1:],
+        optimize=False,
+        duration=40,
+        loop=0,
+    )
+
+    images_cat = np.concatenate((images1, images3), axis=3)
+    images_flat = np.reshape(images_cat, (-1, image_size, image_size * 2))
+
+    images_pil = []
+    for image in images_flat:
+        images_pil.append(Image.fromarray(image).convert("P"))
+    images_pil[0].save(
+        "data/image_not_sync.gif",
         save_all=True,
         append_images=images_pil[1:],
         optimize=False,
@@ -126,6 +149,8 @@ def move_round(length, batch_size, event):
             theta[j] += v_theta[j]
             x[j] = np.sin(theta[j]) / 2 + 0.5
             y[j] = np.cos(theta[j]) / 2 + 0.5
+            if x[j] >= 0.9:
+                out_event[j] = 1
         yield x, y, out_event
 
 
