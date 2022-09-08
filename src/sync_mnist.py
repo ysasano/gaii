@@ -137,7 +137,8 @@ def move_bound(length, batch_size, event):
 
 def move_round(length, batch_size, event):
     theta = np.random.rand(batch_size) * 2 * np.pi
-    v_theta = np.ones((batch_size,)) * 10 / 180 * np.pi
+    v_theta_ = np.ones((batch_size,)) * 10 / 180 * np.pi
+    v_theta = v_theta_.copy()
 
     for i in range(length):
         x = np.zeros((batch_size,))
@@ -145,7 +146,7 @@ def move_round(length, batch_size, event):
         out_event = np.zeros((batch_size,), dtype=np.int32)
         for j in range(batch_size):
             if event[i, j] == 1:
-                v_theta[j] = -v_theta[j]
+                v_theta[j] = 0 if v_theta[j] > 0.001 else v_theta_[j]
             theta[j] += v_theta[j]
             x[j] = np.sin(theta[j]) / 2 + 0.5
             y[j] = np.cos(theta[j]) / 2 + 0.5
