@@ -25,8 +25,8 @@ def get_images(batch_size, length, image_size, xs, ys, digit, digit_size):
 
 
 def main():
-    length = 80
-    image_size = 64
+    length = 200
+    image_size = 256
     digit_size = 28
     batch_size = 5
     digit1 = train_dataset[:batch_size]
@@ -36,7 +36,7 @@ def main():
     )
     images1 = get_images(batch_size, length, image_size, xs1, ys1, digit1, digit_size)
     xs2, ys2, _ = get_random_trajectory(
-        batch_size, length, image_size, digit_size, move_bound, event=event
+        batch_size, length, image_size, digit_size, move_round, event=event
     )
     images2 = get_images(batch_size, length, image_size, xs2, ys2, digit2, digit_size)
     images_cat = np.concatenate((images1, images2), axis=3)
@@ -59,9 +59,9 @@ def get_random_trajectory(batch_size, length, image_size, digit_size, move_fn, e
     canvas_size = image_size - digit_size - 1
     trajectory_x = np.zeros((length, batch_size))
     trajectory_y = np.zeros((length, batch_size))
-    trajectory_o = np.zeros((length, batch_size))
+    trajectory_o = np.zeros((length, batch_size), dtype=np.int32)
     if event is None:
-        event = np.zeros((length, batch_size))
+        event = np.zeros((length, batch_size), dtype=np.int32)
 
     for i, (x, y, o) in enumerate(move_fn(length, batch_size, event)):
         trajectory_x[i, :] = x
@@ -78,19 +78,18 @@ def move_bound(length, batch_size, event):
     theta = np.random.rand(batch_size) * 2 * np.pi
     x = np.random.rand(batch_size)
     y = np.random.rand(batch_size)
-    step_length = 0.1
+    step_length = 0.05
     v_x = np.sin(theta)
     v_y = np.cos(theta)
 
     for i in range(length):
-        x += v_x * step_length
-        y += v_y * step_length
-        out_event = np.zeros((batch_size,))
+        out_event = np.zeros((batch_size,), dtype=np.int32)
         for j in range(batch_size):
             if event[i, j] == 1:
-                e = np.random.choice((0, 1))
-                v_x[j] = v_x[j] * +1 if e else -1
-                v_y[j] = v_y[j] * -1 if e else +1
+                v_x[j] = v_x[j] * -1
+                v_y[j] = v_y[j] * -1
+            x[j] += v_x[j] * step_length
+            y[j] += v_y[j] * step_length
 
             if x[j] <= 0:
                 x[j] = 0
@@ -110,6 +109,23 @@ def move_bound(length, batch_size, event):
                 v_y[j] = -v_y[j]
                 out_event[j] = 1
 
+        yield x, y, out_event
+
+
+def move_round(length, batch_size, event):
+    theta = np.random.rand(batch_size) * 2 * np.pi
+    v_theta = np.ones((batch_size,)) * 10 / 180 * np.pi
+
+    for i in range(length):
+        x = np.zeros((batch_size,))
+        y = np.zeros((batch_size,))
+        out_event = np.zeros((batch_size,), dtype=np.int32)
+        for j in range(batch_size):
+            if event[i, j] == 1:
+                v_theta[j] = -v_theta[j]
+            theta[j] += v_theta[j]
+            x[j] = np.sin(theta[j]) / 2 + 0.5
+            y[j] = np.cos(theta[j]) / 2 + 0.5
         yield x, y, out_event
 
 
