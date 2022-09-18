@@ -12,8 +12,8 @@ def create_summary(experiment_dir):
     data_list = df["data"].unique()
 
     for data_name in data_list:
-        data_dir = Path(f"{experiment_dir}/data={data_name}/")
-        data_dir.mkdir(parents=True)
+        data_dir = Path(f"{experiment_dir}/summary/data={data_name}/")
+        data_dir.mkdir(parents=True, exist_ok=True)
         df_per_data = df.query(f'data == "{data_name}"')
         df_pivot = df_per_data.pivot(
             index="partation", columns="model", values="entropy"

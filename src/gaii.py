@@ -90,9 +90,9 @@ def experiment_mi(param):
 
 
 def experiment(param_filename, debug=False):
+    print(param_filename)
     with Path(param_filename).open() as f:
         param = json.load(f)
-        print(param)
 
     param |= {"debug": debug}
     if param["type"] == "gaii":
