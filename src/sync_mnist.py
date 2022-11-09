@@ -2,6 +2,7 @@ from torchvision import datasets
 import numpy as np
 from PIL import Image
 
+debug = False
 
 # MNISTデータの取得
 # 学習用
@@ -12,40 +13,79 @@ train_dataset = datasets.MNIST(
 ).data.numpy()
 
 
-def get_images(batch_size, length, image_size, xs, ys, digit, digit_size):
+def get_images(batch_size, length, image_size, xs, ys, digit1, digit2, digit_size, es):
     image = np.ones((batch_size, length, image_size, image_size), dtype=np.uint8) * 255
     for batch_idx in range(batch_size):
         for length_idx in range(length):
             x = xs[length_idx, batch_idx]
             y = ys[length_idx, batch_idx]
+            if debug:
+                print(
+                    x,
+                    y,
+                    x + digit_size,
+                    y + digit_size,
+                    image.shape,
+                    image[
+                        batch_idx, length_idx, x : x + digit_size, y : y + digit_size
+                    ].shape,
+                    es[length_idx, batch_idx],
+                )
+            # 白地に黒なので255から引く
             image[batch_idx, length_idx, x : x + digit_size, y : y + digit_size] = (
-                255 - digit[batch_idx]
+                255 - digit1[batch_idx]
+                if np.isclose(es[length_idx, batch_idx], 1.0)
+                else 255 - digit2[batch_idx]
             )
     return image
 
 
+def generate_es(length, batch_size):
+    es = np.zeros((length, batch_size))
+    remaining = 10
+    value = 0
+    for i in range(length):
+        print(remaining)
+        if remaining < 0:
+            remaining = np.random.exponential(20) + 1
+            value = 1 - value
+        es[i, :] = value
+        remaining -= 1
+    return es
+
+
 def main():
     length = 200
-    image_size = 256
+    image_size = 64
     digit_size = 28
     batch_size = 5
     digit1 = train_dataset[:batch_size]
     digit2 = train_dataset[batch_size : batch_size * 2]
-    digit3 = train_dataset[batch_size * 2 : batch_size * 3]
-    xs1, ys1, event = get_random_trajectory(
-        batch_size, length, image_size, digit_size, move_bound, event=None
+    xs1, ys1, es2 = get_random_trajectory(
+        batch_size, length, image_size, digit_size, move_bound
     )
-    images1 = get_images(batch_size, length, image_size, xs1, ys1, digit1, digit_size)
-    xs2, ys2, _ = get_random_trajectory(
-        batch_size, length, image_size, digit_size, move_round, event=event
+    es1 = np.zeros((length, batch_size))
+    images1 = get_images(
+        batch_size, length, image_size, xs1, ys1, digit1, digit1, digit_size, es1
     )
-    images2 = get_images(batch_size, length, image_size, xs2, ys2, digit2, digit_size)
 
-    np.random.shuffle(event)
-    xs3, ys3, _ = get_random_trajectory(
-        batch_size, length, image_size, digit_size, move_round, event=event
+    xs2 = (
+        np.ones((length, batch_size), dtype=np.int32)
+        * (image_size - digit_size - 1)
+        // 2
     )
-    images3 = get_images(batch_size, length, image_size, xs3, ys3, digit3, digit_size)
+    ys2 = (
+        np.ones((length, batch_size), dtype=np.int32)
+        * (image_size - digit_size - 1)
+        // 2
+    )
+    images2 = get_images(
+        batch_size, length, image_size, xs2, ys2, digit1, digit2, digit_size, es2
+    )
+    es3 = generate_es(length, batch_size)
+    images3 = get_images(
+        batch_size, length, image_size, xs2, ys2, digit1, digit2, digit_size, es3
+    )
 
     images_cat = np.concatenate((images1, images2), axis=3)
     images_flat = np.reshape(images_cat, (-1, image_size, image_size * 2))
@@ -76,82 +116,67 @@ def main():
         duration=40,
         loop=0,
     )
+    np.savez_compressed(
+        "data/sync_mnist.npz", images1=images1, images2=images2, images3=images3
+    )
 
 
-def get_random_trajectory(batch_size, length, image_size, digit_size, move_fn, event):
+def get_random_trajectory(batch_size, length, image_size, digit_size, move_fn):
     canvas_size = image_size - digit_size - 1
     trajectory_x = np.zeros((length, batch_size))
     trajectory_y = np.zeros((length, batch_size))
-    trajectory_o = np.zeros((length, batch_size), dtype=np.int32)
-    if event is None:
-        event = np.zeros((length, batch_size), dtype=np.int32)
+    trajectory_e = np.zeros((length, batch_size))
 
-    for i, (x, y, o) in enumerate(move_fn(length, batch_size, event)):
+    for i, (x, y, e) in enumerate(move_fn(length, batch_size)):
         trajectory_x[i, :] = x
         trajectory_y[i, :] = y
-        trajectory_o[i, :] = o
+        trajectory_e[i, :] = e
 
     trajectory_x = (trajectory_x * canvas_size).astype(np.int32)
     trajectory_y = (trajectory_y * canvas_size).astype(np.int32)
 
-    return trajectory_x, trajectory_y, trajectory_o
+    return trajectory_x, trajectory_y, trajectory_e
 
 
-def move_bound(length, batch_size, event):
-    theta = np.random.rand(batch_size) * 2 * np.pi
-    x = np.random.rand(batch_size)
-    y = np.random.rand(batch_size)
-    step_length = 0.05
-    v_x = np.sin(theta)
-    v_y = np.cos(theta)
+def move_bound(length, batch_size):
+    step = 0.05
+    x = np.ones((batch_size,)) * 0.5
+    y = np.ones((batch_size,)) * 0.5
+    e = np.zeros((batch_size,))
+    s = np.ones((batch_size,)) * step
 
-    for i in range(length):
-        out_event = np.zeros((batch_size,), dtype=np.int32)
+    for _ in range(length):
         for j in range(batch_size):
-            if event[i, j] == 1:
-                v_x[j] = v_x[j] * -1
-                v_y[j] = v_y[j] * -1
-            x[j] += v_x[j] * step_length
-            y[j] += v_y[j] * step_length
-
-            if x[j] <= 0:
-                x[j] = 0
-                v_x[j] = -v_x[j]
-                out_event[j] = 1
-            elif x[j] >= 1:
-                x[j] = 1
-                v_x[j] = -v_x[j]
-                out_event[j] = 1
-
+            y[j] += s[j]
             if y[j] <= 0:
                 y[j] = 0
-                v_y[j] = -v_y[j]
-                out_event[j] = 1
+                s[j] = -s[j]
+                e[j] = 1 - e[j]
             elif y[j] >= 1:
                 y[j] = 1
-                v_y[j] = -v_y[j]
-                out_event[j] = 1
-
-        yield x, y, out_event
+                s[j] = -s[j]
+                e[j] = 1 - e[j]
+        yield x, y, e
 
 
 def move_round(length, batch_size, event):
-    theta = np.random.rand(batch_size) * 2 * np.pi
-    v_theta_ = np.ones((batch_size,)) * 10 / 180 * np.pi
-    v_theta = v_theta_.copy()
+    x = 0.5
+    y = 0.5
+    step = 0.05
 
-    for i in range(length):
-        x = np.zeros((batch_size,))
-        y = np.zeros((batch_size,))
+    for _ in range(length):
         out_event = np.zeros((batch_size,), dtype=np.int32)
         for j in range(batch_size):
-            if event[i, j] == 1:
-                v_theta[j] = 0 if v_theta[j] > 0.001 else v_theta_[j]
-            theta[j] += v_theta[j]
-            x[j] = np.sin(theta[j]) / 2 + 0.5
-            y[j] = np.cos(theta[j]) / 2 + 0.5
-            if x[j] >= 0.9:
+            x[j] += step
+            if x[j] <= 0:
+                x[j] = 0
+                step = -step
                 out_event[j] = 1
+            elif x[j] >= 1:
+                x[j] = 1
+                step = -step
+                out_event[j] = 1
+
         yield x, y, out_event
 
 
