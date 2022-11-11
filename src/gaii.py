@@ -45,8 +45,9 @@ def save_and_visualize_model(model, model_dir):
 
 def save_entropy(param, entropy):
     with Path(f"{param['experiment_dir']}/entropy.txt").open("w") as f:
+        model_name = f"model={param['model_name']}_use_time_invariant_term={param['use_time_invariant_term']}_length={param['length']}"
         f.write(
-            f"{param['data_name']}\t{param['partation']}\t{param['model_name']}\t{entropy}\n"
+            f"{param['data_name']}\t{param['partation']}\t{model_name}\t{entropy}\n"
         )
 
 

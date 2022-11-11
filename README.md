@@ -16,11 +16,8 @@ gaiiフォルダに移動し、下記のコマンドを実行
 # 実験の実行
 ```
 ./gaii create_param_file
-
-export latest=$(ls -d -rt data/exp_gaii_div/*/ | tail -n 1)
-./gaii exec_experiment $latest
-
-./gaii summary $latest
+./gaii exec_experiment
+./gaii summary
 ```
 
 # 実験がうまくいっているかの確認

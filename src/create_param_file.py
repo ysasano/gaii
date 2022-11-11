@@ -25,7 +25,7 @@ def create_state_list_param():
         ("LORENZ", 3),
     ]
 
-    for (st1, d1), (st2, d2) in itertools.combinations(data_list, 2):
+    for (st1, d1), (st2, d2) in [(("VAR(1, 2D)", 2), d) for d in data_list]:
         param = {}
         param["state_list1"] = st1
         param["state_list2"] = st2
@@ -40,10 +40,8 @@ def create_model_list_param():
     model_list = [
         "gaii_joint_dense",
         "gaii_joint_linear",
-        "gaii_joint_lstm",
         "gaii_cond_dense",
         "gaii_cond_linear",
-        "gaii_cond_lstm",
     ]
     use_time_invariant_term = [True, False]
     length = [2, 4, 8]
@@ -61,12 +59,17 @@ def create_param():
     # GAIIのパラメータ生成
     state_list_param = list(create_state_list_param())
     model_list_param = list(create_model_list_param())
+    print(f"len(state_list_param)={len(state_list_param)}")
+    print(f"len(model_list_param)={len(model_list_param)}")
+    print(f"total={len(state_list_param)*len(model_list_param)}")
     for st_param, m_param in itertools.product(state_list_param, model_list_param):
-        name = f"data={st_param['data_name']}" \
-            + f"_partation={st_param['partation']}" \
-            + f"_model={m_param['model_name']}" \
-            + f"_use_time_invariant_term={m_param['use_time_invariant_term']}" \
+        name = (
+            f"data={st_param['data_name']}"
+            + f"_partation={st_param['partation']}"
+            + f"_model={m_param['model_name']}"
+            + f"_use_time_invariant_term={m_param['use_time_invariant_term']}"
             + f"_length={m_param['length']}"
+        )
         param = {
             "type": "gaii",
             "experiment_dir": create_experiment_dir(now, name),
