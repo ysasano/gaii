@@ -24,7 +24,7 @@ class Reshape(nn.Module):
         self.shape = shape
 
     def forward(self, x):
-        return x.reshape(-1, *self.shape)
+        return x.reshape(x.shape[0], *self.shape)
 
 
 class Generator(nn.Module):
@@ -36,12 +36,12 @@ class Generator(nn.Module):
         # https://kikaben.com/dcgan-mnist/
         self.seq1 = nn.Sequential(
             nn.Flatten(),  # => length * 100
-            nn.Linear(length * 100, 1024),  # => 1024
-            nn.BatchNorm1d(1024),
+            nn.Linear(length * 100, 512),  # => 1024
+            nn.BatchNorm1d(512),
             nn.LeakyReLU(0.01),
-            Reshape(16, 8, 8),  # => 16 x 8 x 8
+            Reshape(8, 8, 8),  # => 8 x 8 x 8
             nn.ConvTranspose2d(
-                16, 32, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False
+                8, 32, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False
             ),  # => 32 x 16 x 16
             nn.BatchNorm2d(32),
             nn.LeakyReLU(0.01),
@@ -65,12 +65,12 @@ class Generator(nn.Module):
 
         self.seq2 = nn.Sequential(
             nn.Flatten(),  # => length * 100
-            nn.Linear(length * 100, 1024),  # => 784
-            nn.BatchNorm1d(1024),
+            nn.Linear(length * 100, 512),  # => 784
+            nn.BatchNorm1d(512),
             nn.LeakyReLU(0.01),
-            Reshape(16, 8, 8),  # => 16 x 8 x 8
+            Reshape(8, 8, 8),  # => 16 x 8 x 8
             nn.ConvTranspose2d(
-                16, 32, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False
+                8, 32, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False
             ),  # => 32 x 16 x 16
             nn.BatchNorm2d(32),
             nn.LeakyReLU(0.01),
@@ -94,12 +94,12 @@ class Generator(nn.Module):
 
         self.corr = nn.Sequential(
             nn.Flatten(),  # => 2 * 100
-            nn.Linear(200, 1024),  # => 784
-            nn.BatchNorm1d(1024),
+            nn.Linear(200, 512),  # => 784
+            nn.BatchNorm1d(512),
             nn.LeakyReLU(0.01),
-            Reshape(16, 8, 8),  # => 16 x 8 x 8
+            Reshape(8, 8, 8),  # => 16 x 8 x 8
             nn.ConvTranspose2d(
-                16, 32, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False
+                8, 32, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False
             ),  # => 32 x 16 x 16
             nn.BatchNorm2d(32),
             nn.LeakyReLU(0.01),
@@ -145,21 +145,21 @@ class Discriminator(nn.Module):
     def __init__(self, length):
         super(Discriminator, self).__init__()
         alpha = 0.01
-        # 2 x length x 64 x 64 => 32 x 32 x 32
+        # 2 x length x 64 x 64 => 16 x 32 x 32
         self.conv1 = nn.Sequential(
             Reshape(2 * length, 64, 64),
             nn.Conv2d(2 * length, 16, kernel_size=5, stride=2, padding=2, bias=False),
             nn.LeakyReLU(alpha),
         )
 
-        # 32 x 32 x 32 => 32 x 16 x 16
+        # 16 x 32 x 32 => 16 x 16 x 16
         self.conv2 = nn.Sequential(
             nn.Conv2d(16, 16, kernel_size=5, stride=2, padding=2, bias=False),
             nn.BatchNorm2d(16),
             nn.LeakyReLU(alpha),
         )
 
-        # 32 x 16 x 16 => 16 x 8 x 8
+        # 16 x 16 x 16 => 16 x 8 x 8
         self.conv3 = nn.Sequential(
             nn.Conv2d(16, 16, kernel_size=5, stride=2, padding=2, bias=False),
             nn.BatchNorm2d(16),
@@ -175,7 +175,7 @@ class Discriminator(nn.Module):
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
-        x = self.conv1(x)  # => 32 x 32 x 32
+        x = self.conv1(x)  # => 16 x 32 x 32
         x = self.conv2(x)  # => 16 x 16 x 16
         x = self.conv3(x)  # => 16 x 8 x 8
         x = self.fc(x)
@@ -247,7 +247,6 @@ def fit_q(
         z1 = sample_z(batch_size, length)  # => 2 x length x 100
         z2 = sample_z(batch_size, length)  # => 2 x length x 100
         fake_x = G(z1, z2)
-
         # real xの生成
         real_x = sample_x(
             batch_size, state_list, length

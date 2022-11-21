@@ -40,8 +40,10 @@ def create_model_list_param():
     model_list = [
         "gaii_joint_dense",
         "gaii_joint_linear",
+        "gaii_joint_lstm",
         "gaii_cond_dense",
         "gaii_cond_linear",
+        "gaii_cond_lstm",
     ]
     use_time_invariant_term = [True, False]
     length = [2, 4, 8]
