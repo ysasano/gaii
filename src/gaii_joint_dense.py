@@ -220,7 +220,7 @@ def fit_q(
         ).set_index("i"),
         "FID_all": pd.DataFrame(FID_all, columns=["i", "FID"]).set_index("i"),
         "js_all": pd.DataFrame(js_all, columns=["i", "js", "js_ema"]).set_index("i"),
-        "loss_all": pd.DataFrame(loss_all, columns=["i", "g_loss", "d_loss"]).set_index(
+        "loss_all": pd.DataFrame(loss_all, columns=["i", "d_loss", "g_loss"]).set_index(
             "i"
         ),
         "js": js_ema,
