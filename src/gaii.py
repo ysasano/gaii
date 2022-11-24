@@ -45,7 +45,10 @@ def save_and_visualize_model(model, model_dir):
 
 def save_entropy(param, entropy):
     with Path(f"{param['experiment_dir']}/entropy.txt").open("w") as f:
-        model_name = f"model={param['model_name']}_use_time_invariant_term={param['use_time_invariant_term']}_length={param['length']}"
+        if param["model_name"].startswith("gaii"):
+            model_name = f"model={param['model_name']}_use_time_invariant_term={param['use_time_invariant_term']}_length={param['length']}"
+        else:
+            model_name = f"model={param['model_name']}"
         f.write(
             f"{param['data_name']}\t{param['partation']}\t{model_name}\t{entropy}\n"
         )
@@ -56,11 +59,13 @@ def experiment_gaii(param):
     print(f"partation: {param['partation']}")
     print(f"model: {param['model_name']}")
 
+    n_step = 100 if param["mini"] else 20000
+
     # GAIIの算出
     model_fn = load_model(param)
     state_list = test_data.load_state_list(param)
     partation = param["partation"]
-    result = model_fn(state_list, partation, debug=param["debug"], n_step=20000)
+    result = model_fn(state_list, partation, debug=param["debug"], n_step=n_step)
 
     # 学習結果の可視化・保存
     save_and_visualize_model(

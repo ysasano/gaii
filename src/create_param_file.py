@@ -5,6 +5,8 @@ from pathlib import Path
 import fire
 import mip
 
+mini = True
+
 
 def create_experiment_dir(now, name):
     experiment_dir = Path("data/exp_gaii_div") / now / name
@@ -13,17 +15,20 @@ def create_experiment_dir(now, name):
 
 
 def create_state_list_param():
-    data_list = [
-        ("VAR(1, 1D)", 1),
-        ("VAR(1, 2D)", 2),
-        ("VAR(1, 3D)", 3),
-        ("VAR(4, 1D)", 1),
-        ("VAR(4, 2D)", 2),
-        ("VAR(4, 3D)", 3),
-        ("NLVAR(3, 3D)", 3),
-        ("HENON", 3),
-        ("LORENZ", 3),
-    ]
+    if mini:
+        data_list = [("VAR(1, 2D)", 2)]
+    else:
+        data_list = [
+            ("VAR(1, 1D)", 1),
+            ("VAR(1, 2D)", 2),
+            ("VAR(1, 3D)", 3),
+            ("VAR(4, 1D)", 1),
+            ("VAR(4, 2D)", 2),
+            ("VAR(4, 3D)", 3),
+            ("NLVAR(3, 3D)", 3),
+            ("HENON", 3),
+            ("LORENZ", 3),
+        ]
 
     for (st1, d1), (st2, d2) in [(("VAR(1, 2D)", 2), d) for d in data_list]:
         param = {}
@@ -45,8 +50,13 @@ def create_model_list_param():
         "gaii_cond_linear",
         "gaii_cond_lstm",
     ]
-    use_time_invariant_term = [True, False]
-    length = [2, 4, 8]
+    if mini:
+        use_time_invariant_term = [True]
+        length = [2]
+    else:
+        use_time_invariant_term = [True, False]
+        length = [2, 4, 8]
+
     for m, t, l in itertools.product(model_list, use_time_invariant_term, length):
         param = {}
         param["model_name"] = m
@@ -73,6 +83,7 @@ def create_param():
             + f"_length={m_param['length']}"
         )
         param = {
+            "mini": mini,
             "type": "gaii",
             "experiment_dir": create_experiment_dir(now, name),
         }
@@ -82,6 +93,7 @@ def create_param():
     for st_param in state_list_param:
         name = f"data={st_param['data_name']}_partation={st_param['partation']}_model=geometric"
         param = {
+            "mini": mini,
             "type": "geometric",
             "model_name": "geometric",
             "experiment_dir": create_experiment_dir(now, name),
@@ -94,6 +106,7 @@ def create_param():
             f"data={st_param['data_name']}_partation={st_param['partation']}_model=mi"
         )
         param = {
+            "mini": mini,
             "type": "mi",
             "model_name": "mi",
             "experiment_dir": create_experiment_dir(now, name),
