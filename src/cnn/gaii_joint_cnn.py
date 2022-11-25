@@ -41,26 +41,24 @@ class Generator(nn.Module):
             nn.LeakyReLU(0.01),
             Reshape(8, 8, 8),  # => 8 x 8 x 8
             nn.ConvTranspose2d(
-                8, 32, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False
+                8, 4, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False
             ),  # => 32 x 16 x 16
-            nn.BatchNorm2d(32),
+            nn.BatchNorm2d(4),
             nn.LeakyReLU(0.01),
             nn.ConvTranspose2d(
-                32, 32, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False
+                4, 2, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False
             ),  # => 32 x 32 x 32
-            nn.BatchNorm2d(32),
+            nn.BatchNorm2d(2),
             nn.LeakyReLU(0.01),
             nn.ConvTranspose2d(
-                32,
+                2,
                 1,
                 kernel_size=5,
                 stride=2,
                 padding=2,
                 output_padding=1,
                 bias=False,
-            ),  # => 1 x 64 x 64
-            Reshape(64, 64),
-            nn.Sigmoid(),
+            ),
         )
 
         z1_size = length * latent_size
@@ -69,7 +67,7 @@ class Generator(nn.Module):
         self.seq1 = nn.Sequential(
             nn.Flatten(),
             nn.Linear(z1_size, z1_size),
-            nn.ReLU(),
+            nn.LeakyReLU(0.01),
             nn.Linear(z1_size, z1_size),
             nn.Unflatten(-1, (length, latent_size)),
         )
@@ -77,12 +75,13 @@ class Generator(nn.Module):
         self.seq2 = nn.Sequential(
             nn.Flatten(),
             nn.Linear(z2_size, z2_size),
-            nn.ReLU(),
+            nn.LeakyReLU(0.01),
             nn.Linear(z2_size, z2_size),
             nn.Unflatten(-1, (length, latent_size)),
         )
 
         self.linear_corr = nn.Linear(latent_size * 2, latent_size * 2)
+        self.tanh = nn.Tanh()
 
     def forward(self, z1, z2):
         batch_size = z1.shape[0]
@@ -103,7 +102,7 @@ class Generator(nn.Module):
         hidden = hidden.reshape(
             batch_size, self.length, 2, 1, 64, 64
         )  # => length x 2 x 1 x 64 x 64
-        return hidden
+        return self.tanh(hidden)
 
 
 class Discriminator(nn.Module):
@@ -115,21 +114,21 @@ class Discriminator(nn.Module):
         self.activation = nn.ReLU()
         self.encoder = nn.Sequential(
             nn.Conv2d(
-                1, 16, kernel_size=5, stride=2, padding=2, bias=False
-            ),  # => 16 x 32 x 32
+                1, 2, kernel_size=5, stride=2, padding=2, bias=False
+            ),  # => 2 x 32 x 32
             nn.LeakyReLU(alpha),
             nn.Conv2d(
-                16, 16, kernel_size=5, stride=2, padding=2, bias=False
-            ),  # => 16 x 16 x 16
-            nn.BatchNorm2d(16),
+                2, 4, kernel_size=5, stride=2, padding=2, bias=False
+            ),  # => 4 x 16 x 16
+            nn.BatchNorm2d(4),
             nn.LeakyReLU(alpha),
             nn.Conv2d(
-                16, 16, kernel_size=5, stride=2, padding=2, bias=False
-            ),  # => 16 x 8 x 8
-            nn.BatchNorm2d(16),
+                4, 8, kernel_size=5, stride=2, padding=2, bias=False
+            ),  # => 8 x 8 x 8
+            nn.BatchNorm2d(8),
             nn.LeakyReLU(alpha),
             nn.Flatten(),
-            nn.Linear(1024, 100),  # => 1024
+            nn.Linear(512, 100),  # => 100
         )
 
         self.linear1 = nn.Linear(self.size, self.size)
@@ -154,12 +153,12 @@ def sample_x(batch_size, state_list, length):
     stream_num = state_list.shape[0]
     stream_idxes = rng.choice(stream_num, batch_size)
     # all_batch_size x all_length x 2 x 1 x w x h => batch_size x all_length x 2 x 1 x width x height
-    seq = state_list[stream_idxes, :, :, :, :, :]
+    seq = state_list[stream_idxes, ...]
 
     idx = rng.choice(state_list.shape[1] - length - 1, batch_size)
     idx_span = np.array([np.arange(i, i + length) for i in idx])
     # batch_size x all_length x 2 x 1 x w x h => batch_size x length x 2 x 1 x w x h
-    seq = np.stack([seq[i, idx_span[i], :, :, :, :] for i in range(batch_size)], axis=0)
+    seq = np.stack([seq[i, idx_span[i], ...] for i in range(batch_size)], axis=0)
     return to_torch(seq)
 
 
@@ -182,8 +181,8 @@ def fit_q(
     G = Generator(length, use_time_invariant_term)
     D = Discriminator(length)
     adversarial_loss = nn.BCELoss()
-    d_optimizer = optim.Adam(D.parameters(), lr=1e-4)
-    g_optimizer = optim.Adam(G.parameters(), lr=1e-4)
+    d_optimizer = optim.Adam(D.parameters(), lr=1e-5)
+    g_optimizer = optim.Adam(G.parameters(), lr=1e-5)
     if debug:
         print(G)
         print(D)
@@ -191,8 +190,8 @@ def fit_q(
         G.cuda()
         D.cuda()
 
-    real_label = torch.ones(batch_size, 1, requires_grad=False)
-    fake_label = torch.zeros(batch_size, 1, requires_grad=False)
+    real_label = torch.ones(batch_size, 1, requires_grad=False) * 0.7
+    fake_label = torch.ones(batch_size, 1, requires_grad=False) * 0.3
 
     FID_all = []
     loss_all = []
@@ -223,8 +222,8 @@ def fit_q(
         d_optimizer.zero_grad()
 
         # fake xの生成
-        z1 = sample_z(batch_size, length)  # => 2 x length x 100
-        z2 = sample_z(batch_size, length)  # => 2 x length x 100
+        z1 = sample_z(batch_size, length)  # => length x 200
+        z2 = sample_z(batch_size, length)  # => length x 200
         fake_x = G(z1, z2)
         # real xの生成
         real_x = sample_x(
@@ -252,21 +251,27 @@ def fit_q(
         g_optimizer.zero_grad()
 
         # fake xの生成
-        z1 = sample_z(batch_size, length)  # => 2 x length x 100
-        z2 = sample_z(batch_size, length)  # => 2 x length x 100
+        z1 = sample_z(batch_size, length)  # => length x 200
+        z2 = sample_z(batch_size, length)  # => length x 200
         fake_x = G(z1, z2)
 
         # real xの生成
         real_x = sample_x(
             batch_size, state_list, length
-        )  # => 2 x length x width x height
+        )  # => length x 2 x 1 x width x height
+        print(real_x[0, 0, 0, 0, :, :])
+        print(fake_x[0, 0, 0, 0, :, :])
 
         # Discriminatorを騙すように学習
         D_fake = D(fake_x)
         D_real = D(real_x)
+        print(D_real[:5])
+        print(D_fake[:5])
         if mode == "GAN":
             fake_loss = adversarial_loss(D_fake, real_label)
             real_loss = adversarial_loss(D_real, fake_label)
+            print(fake_loss)
+            print(real_loss)
             g_loss = real_loss + fake_loss
         elif mode == "f-GAN:KL":
             fake_loss = -f_star(D_fake).mean()
