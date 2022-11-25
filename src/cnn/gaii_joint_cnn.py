@@ -32,11 +32,11 @@ class Generator(nn.Module):
         super(Generator, self).__init__()
         self.use_time_invariant_term = use_time_invariant_term
         self.length = length
+        latent_size = 100
 
         # https://kikaben.com/dcgan-mnist/
-        self.seq1 = nn.Sequential(
-            nn.Flatten(),  # => length * 100
-            nn.Linear(length * 100, 512),  # => 1024
+        self.decoder = nn.Sequential(
+            nn.Linear(latent_size, 512),  # => 1024
             nn.BatchNorm1d(512),
             nn.LeakyReLU(0.01),
             Reshape(8, 8, 8),  # => 8 x 8 x 8
@@ -52,92 +52,57 @@ class Generator(nn.Module):
             nn.LeakyReLU(0.01),
             nn.ConvTranspose2d(
                 32,
-                length,
+                1,
                 kernel_size=5,
                 stride=2,
                 padding=2,
                 output_padding=1,
                 bias=False,
-            ),  # => length x 64 x 64
-            Reshape(1, length, 64, 64),
+            ),  # => 1 x 64 x 64
+            Reshape(64, 64),
             nn.Sigmoid(),
+        )
+
+        z1_size = length * latent_size
+        z2_size = length * latent_size
+
+        self.seq1 = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(z1_size, z1_size),
+            nn.ReLU(),
+            nn.Linear(z1_size, z1_size),
+            nn.Unflatten(-1, (length, latent_size)),
         )
 
         self.seq2 = nn.Sequential(
-            nn.Flatten(),  # => length * 100
-            nn.Linear(length * 100, 512),  # => 784
-            nn.BatchNorm1d(512),
-            nn.LeakyReLU(0.01),
-            Reshape(8, 8, 8),  # => 16 x 8 x 8
-            nn.ConvTranspose2d(
-                8, 32, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False
-            ),  # => 32 x 16 x 16
-            nn.BatchNorm2d(32),
-            nn.LeakyReLU(0.01),
-            nn.ConvTranspose2d(
-                32, 32, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False
-            ),  # => 32 x 32 x 32
-            nn.BatchNorm2d(32),
-            nn.LeakyReLU(0.01),
-            nn.ConvTranspose2d(
-                32,
-                length,
-                kernel_size=5,
-                stride=2,
-                padding=2,
-                output_padding=1,
-                bias=False,
-            ),  # => length x 64 x 64
-            Reshape(1, length, 64, 64),
-            nn.Sigmoid(),
+            nn.Flatten(),
+            nn.Linear(z2_size, z2_size),
+            nn.ReLU(),
+            nn.Linear(z2_size, z2_size),
+            nn.Unflatten(-1, (length, latent_size)),
         )
 
-        self.corr = nn.Sequential(
-            nn.Flatten(),  # => 2 * 100
-            nn.Linear(200, 512),  # => 784
-            nn.BatchNorm1d(512),
-            nn.LeakyReLU(0.01),
-            Reshape(8, 8, 8),  # => 16 x 8 x 8
-            nn.ConvTranspose2d(
-                8, 32, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False
-            ),  # => 32 x 16 x 16
-            nn.BatchNorm2d(32),
-            nn.LeakyReLU(0.01),
-            nn.ConvTranspose2d(
-                32, 32, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False
-            ),  # => 32 x 32 x 32
-            nn.BatchNorm2d(32),
-            nn.LeakyReLU(0.01),
-            nn.ConvTranspose2d(
-                32,
-                2,
-                kernel_size=5,
-                stride=2,
-                padding=2,
-                output_padding=1,
-                bias=False,
-            ),  # => 2 x 64 x 64
-            Reshape(2, 1, 64, 64),  # => 2 x 1 x 64 x 64
-            nn.Sigmoid(),
-        )
+        self.linear_corr = nn.Linear(latent_size * 2, latent_size * 2)
 
     def forward(self, z1, z2):
-        z1_1 = z1[:, 0, :, :]  # 2 x length x 100 => length x 100
-        z1_2 = z1[:, 1, :, :]  # 2 x length x 100 => length x 100
-        x1 = self.seq1(z1_1)  # => 1 x length x 64 x 64
-        x2 = self.seq2(z1_2)  # => 1 x length x 64 x 64
-        hidden = torch.cat((x1, x2), dim=1)  # => 2 x length x 64 x 64
+        batch_size = z1.shape[0]
+        latent_size = z1.shape[-1] // 2
 
-        corr_list = []
-        for t in range(self.length):
-            z_t = z2[:, :, t, :]  # 2 x length x 100 => 2 x 100
-            corr = self.corr(z_t)  # => 2 x 1 x 64 x 64
-            corr_list.append(corr)
-        hidden_corr = torch.cat(corr_list, dim=2)  # => 2 x length x 64 x 64
+        # joint_dense
+        x1 = self.seq1(z1[:, :, :latent_size])  # length x 200 => length x 100
+        x2 = self.seq2(z1[:, :, -latent_size:])  # length x 200 => length x 100
+        corr = self.linear_corr(z2)  # length x 200 => length x 200
 
+        hidden = torch.cat((x1, x2), dim=-1)  # => length x 200
         if self.use_time_invariant_term:
-            hidden += hidden_corr
+            hidden += corr  # => length x 200
 
+        # time distribute decode
+        hidden = hidden.reshape(batch_size * self.length * 2, latent_size)  # => 100
+        hidden = self.decoder(hidden)
+        hidden = hidden.reshape(
+            batch_size, self.length, 2, 1, 64, 64
+        )  # => length x 2 x 1 x 64 x 64
         return hidden
 
 
@@ -145,59 +110,62 @@ class Discriminator(nn.Module):
     def __init__(self, length):
         super(Discriminator, self).__init__()
         alpha = 0.01
-        # 2 x length x 64 x 64 => 16 x 32 x 32
-        self.conv1 = nn.Sequential(
-            Reshape(2 * length, 64, 64),
-            nn.Conv2d(2 * length, 16, kernel_size=5, stride=2, padding=2, bias=False),
+        self.length = length
+        self.size = length * 2 * 100
+        self.activation = nn.ReLU()
+        self.encoder = nn.Sequential(
+            nn.Conv2d(
+                1, 16, kernel_size=5, stride=2, padding=2, bias=False
+            ),  # => 16 x 32 x 32
             nn.LeakyReLU(alpha),
-        )
-
-        # 16 x 32 x 32 => 16 x 16 x 16
-        self.conv2 = nn.Sequential(
-            nn.Conv2d(16, 16, kernel_size=5, stride=2, padding=2, bias=False),
+            nn.Conv2d(
+                16, 16, kernel_size=5, stride=2, padding=2, bias=False
+            ),  # => 16 x 16 x 16
             nn.BatchNorm2d(16),
             nn.LeakyReLU(alpha),
-        )
-
-        # 16 x 16 x 16 => 16 x 8 x 8
-        self.conv3 = nn.Sequential(
-            nn.Conv2d(16, 16, kernel_size=5, stride=2, padding=2, bias=False),
+            nn.Conv2d(
+                16, 16, kernel_size=5, stride=2, padding=2, bias=False
+            ),  # => 16 x 8 x 8
             nn.BatchNorm2d(16),
             nn.LeakyReLU(alpha),
-        )
-
-        # 16 x 8 x 8 => 1024
-        self.fc = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(1024, 1),
+            nn.Linear(1024, 100),  # => 1024
         )
 
+        self.linear1 = nn.Linear(self.size, self.size)
+        self.dropout = nn.Dropout(p=0.2)
+        self.linear2 = nn.Linear(self.size, 1)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
-        x = self.conv1(x)  # => 16 x 32 x 32
-        x = self.conv2(x)  # => 16 x 16 x 16
-        x = self.conv3(x)  # => 16 x 8 x 8
-        x = self.fc(x)
-        return self.sigmoid(x)
+        batch_size = x.shape[0]
+        # time distribute encode
+        x = x.reshape(batch_size * self.length * 2, 1, 64, 64)  # => 1 x 64 x 64
+        x = self.encoder(x)  # => 100
+        x = x.reshape(batch_size, self.length * 2 * 100)  # => length x 2 x 100
+
+        # joint_dense
+        x = self.activation(self.linear1(x))
+        x = self.dropout(x)
+        return self.sigmoid(self.linear2(x))
 
 
 def sample_x(batch_size, state_list, length):
     stream_num = state_list.shape[0]
     stream_idxes = rng.choice(stream_num, batch_size)
-    # all_batch_size x 2 x all_length x w x h => batch_size x 2 x all_length x width x height
-    seq = state_list[stream_idxes, :, :, :, :]
+    # all_batch_size x all_length x 2 x 1 x w x h => batch_size x all_length x 2 x 1 x width x height
+    seq = state_list[stream_idxes, :, :, :, :, :]
 
-    idx = rng.choice(state_list.shape[2] - length - 1, batch_size)
+    idx = rng.choice(state_list.shape[1] - length - 1, batch_size)
     idx_span = np.array([np.arange(i, i + length) for i in idx])
-    # batch_size x 2 x all_length x w x h => batch_size x 2 x length x width x height
-    seq = np.stack([seq[i, :, idx_span[i], :, :] for i in range(batch_size)], axis=0)
+    # batch_size x all_length x 2 x 1 x w x h => batch_size x length x 2 x 1 x w x h
+    seq = np.stack([seq[i, idx_span[i], :, :, :, :] for i in range(batch_size)], axis=0)
     return to_torch(seq)
 
 
 def sample_z(batch_size, length):
-    z = torch.randn(batch_size * length, 2, 100)
-    return z.view(batch_size, 2, length, 100)  # => 2 x length x 100
+    z = torch.randn(batch_size * length, 200)
+    return z.view(batch_size, length, 200)  # => length x 200
 
 
 def fit_q(
@@ -233,8 +201,19 @@ def fit_q(
     js_ema = None
     f_star = lambda t: torch.exp(t - 1)
     state_list = torch.stack(
-        [to_torch(images1), to_torch(images2)], dim=1
-    )  # all_length x width x height => 2 x all_length x width x height
+        [to_torch(images1), to_torch(images2)], dim=2
+    )  # all_length x width x height => all_length x 2 x width x height
+    state_list = torch.reshape(
+        state_list,
+        [
+            state_list.shape[0],
+            state_list.shape[1],
+            state_list.shape[2],
+            1,
+            state_list.shape[3],
+            state_list.shape[4],
+        ],
+    )  # => all_length x 2 x 1 x width x height
 
     for i in range(n_step):
         print(i, n_step)
