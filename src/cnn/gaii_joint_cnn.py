@@ -42,23 +42,12 @@ class Generator(nn.Module):
             Reshape(8, 8, 8),  # => 8 x 8 x 8
             nn.ConvTranspose2d(
                 8, 4, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False
-            ),  # => 32 x 16 x 16
+            ),  # => 4 x 16 x 16
             nn.BatchNorm2d(4),
             nn.LeakyReLU(0.01),
             nn.ConvTranspose2d(
-                4, 2, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False
-            ),  # => 32 x 32 x 32
-            nn.BatchNorm2d(2),
-            nn.LeakyReLU(0.01),
-            nn.ConvTranspose2d(
-                2,
-                1,
-                kernel_size=5,
-                stride=2,
-                padding=2,
-                output_padding=1,
-                bias=False,
-            ),
+                4, 1, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False
+            ),  # => 1 x 32 x 32
         )
 
         z1_size = length * latent_size
@@ -100,8 +89,8 @@ class Generator(nn.Module):
         hidden = hidden.reshape(batch_size * self.length * 2, latent_size)  # => 100
         hidden = self.decoder(hidden)
         hidden = hidden.reshape(
-            batch_size, self.length, 2, 1, 64, 64
-        )  # => length x 2 x 1 x 64 x 64
+            batch_size, self.length, 2, 1, 32, 32
+        )  # => length x 2 x 1 x 32 x 32
         return self.tanh(hidden)
 
 
@@ -115,20 +104,14 @@ class Discriminator(nn.Module):
         self.encoder = nn.Sequential(
             nn.Conv2d(
                 1, 2, kernel_size=5, stride=2, padding=2, bias=False
-            ),  # => 2 x 32 x 32
+            ),  # => 2 x 16 x 16
             nn.LeakyReLU(alpha),
             nn.Conv2d(
                 2, 4, kernel_size=5, stride=2, padding=2, bias=False
-            ),  # => 4 x 16 x 16
-            nn.BatchNorm2d(4),
-            nn.LeakyReLU(alpha),
-            nn.Conv2d(
-                4, 8, kernel_size=5, stride=2, padding=2, bias=False
-            ),  # => 8 x 8 x 8
-            nn.BatchNorm2d(8),
+            ),  # => 4 x 8 x 8
             nn.LeakyReLU(alpha),
             nn.Flatten(),
-            nn.Linear(512, 100),  # => 100
+            nn.Linear(256, 100),  # => 100
         )
 
         self.linear1 = nn.Linear(self.size, self.size)
@@ -139,7 +122,7 @@ class Discriminator(nn.Module):
     def forward(self, x):
         batch_size = x.shape[0]
         # time distribute encode
-        x = x.reshape(batch_size * self.length * 2, 1, 64, 64)  # => 1 x 64 x 64
+        x = x.reshape(batch_size * self.length * 2, 1, 32, 32)  # => 1 x 32 x 32
         x = self.encoder(x)  # => 100
         x = x.reshape(batch_size, self.length * 2 * 100)  # => length x 2 x 100
 
@@ -259,19 +242,19 @@ def fit_q(
         real_x = sample_x(
             batch_size, state_list, length
         )  # => length x 2 x 1 x width x height
-        print(real_x[0, 0, 0, 0, :, :])
-        print(fake_x[0, 0, 0, 0, :, :])
+        # print(real_x[0, 0, 0, 0, :, :])
+        # print(fake_x[0, 0, 0, 0, :, :])
 
         # Discriminatorを騙すように学習
         D_fake = D(fake_x)
         D_real = D(real_x)
-        print(D_real[:5])
-        print(D_fake[:5])
+        # print(D_real[:5])
+        # print(D_fake[:5])
         if mode == "GAN":
             fake_loss = adversarial_loss(D_fake, real_label)
             real_loss = adversarial_loss(D_real, fake_label)
-            print(fake_loss)
-            print(real_loss)
+            # print(fake_loss)
+            # print(real_loss)
             g_loss = real_loss + fake_loss
         elif mode == "f-GAN:KL":
             fake_loss = -f_star(D_fake).mean()
