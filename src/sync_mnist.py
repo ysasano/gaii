@@ -71,6 +71,7 @@ def main():
     image_size = 64
     digit_size = 28
     batch_size = 5
+    minify_size = 16
     digit1 = train_dataset[:batch_size]
     digit2 = train_dataset[batch_size : batch_size * 2]
     xs1, ys1, es2 = get_random_trajectory(
@@ -80,7 +81,7 @@ def main():
     images1 = get_images(
         batch_size, length, image_size, xs1, ys1, digit1, digit1, digit_size, es1
     )
-    images1 = resize(images1, (32, 32))
+    images1 = resize(images1, (minify_size, minify_size))
 
     xs2 = (
         np.ones((length, batch_size), dtype=np.int32)
@@ -95,15 +96,15 @@ def main():
     images2 = get_images(
         batch_size, length, image_size, xs2, ys2, digit1, digit2, digit_size, es2
     )
-    images2 = resize(images2, (32, 32))
+    images2 = resize(images2, (minify_size, minify_size))
     es3 = generate_es(length, batch_size)
     images3 = get_images(
         batch_size, length, image_size, xs2, ys2, digit1, digit2, digit_size, es3
     )
-    images3 = resize(images3, (32, 32))
+    images3 = resize(images3, (minify_size, minify_size))
 
     images_cat = np.concatenate((images1, images2), axis=3)
-    images_flat = np.reshape(images_cat, (-1, 32, 32 * 2))
+    images_flat = np.reshape(images_cat, (-1, minify_size, minify_size * 2))
 
     images_pil = []
     for image in images_flat:
@@ -118,7 +119,7 @@ def main():
     )
 
     images_cat = np.concatenate((images1, images3), axis=3)
-    images_flat = np.reshape(images_cat, (-1, 32, 32 * 2))
+    images_flat = np.reshape(images_cat, (-1, minify_size, minify_size * 2))
 
     images_pil = []
     for image in images_flat:

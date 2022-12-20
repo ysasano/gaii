@@ -33,11 +33,11 @@ def save_and_visualize_model(model, model_dir):
 
 
 def normalize(image):
-    return (image / 255.0 * 2.0) - 1
+    return (image / 255.0 * 2) - 1
 
 
 def experiment_gaii():
-    n_step = 500 if mini else 10000
+    n_step = 1000 if mini else 10000
     # GAIIの算出
     model_fn = load_model()
     images = load_images()

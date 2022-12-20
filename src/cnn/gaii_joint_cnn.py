@@ -36,18 +36,18 @@ class Generator(nn.Module):
 
         # https://kikaben.com/dcgan-mnist/
         self.decoder = nn.Sequential(
-            nn.Linear(latent_size, 512),  # => 1024
-            nn.BatchNorm1d(512),
+            nn.Linear(latent_size, 128),  # => 128
+            nn.BatchNorm1d(128),
             nn.LeakyReLU(0.01),
-            Reshape(8, 8, 8),  # => 8 x 8 x 8
+            Reshape(2, 8, 8),  # => 2 x 8 x 8
             nn.ConvTranspose2d(
-                8, 4, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False
-            ),  # => 4 x 16 x 16
-            nn.BatchNorm2d(4),
+                2, 2, kernel_size=4, stride=2, padding=1, bias=False
+            ),  # => 2 x 16 x 16
+            # nn.BatchNorm2d(2),
             nn.LeakyReLU(0.01),
             nn.ConvTranspose2d(
-                4, 1, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False
-            ),  # => 1 x 32 x 32
+                2, 1, kernel_size=1, stride=1, padding=0, bias=False
+            ),  # => 1 x 16 x 16
         )
 
         z1_size = length * latent_size
@@ -89,8 +89,8 @@ class Generator(nn.Module):
         hidden = hidden.reshape(batch_size * self.length * 2, latent_size)  # => 100
         hidden = self.decoder(hidden)
         hidden = hidden.reshape(
-            batch_size, self.length, 2, 1, 32, 32
-        )  # => length x 2 x 1 x 32 x 32
+            batch_size, self.length, 2, 1, 16, 16
+        )  # => length x 2 x 1 x 16 x 16
         return self.tanh(hidden)
 
 
@@ -103,15 +103,16 @@ class Discriminator(nn.Module):
         self.activation = nn.ReLU()
         self.encoder = nn.Sequential(
             nn.Conv2d(
-                1, 2, kernel_size=5, stride=2, padding=2, bias=False
+                1, 2, kernel_size=1, stride=1, padding=0, bias=False
             ),  # => 2 x 16 x 16
+            nn.BatchNorm2d(2),
             nn.LeakyReLU(alpha),
             nn.Conv2d(
-                2, 4, kernel_size=5, stride=2, padding=2, bias=False
-            ),  # => 4 x 8 x 8
+                2, 2, kernel_size=4, stride=2, padding=1, bias=False
+            ),  # => 2 x 8 x 8
             nn.LeakyReLU(alpha),
             nn.Flatten(),
-            nn.Linear(256, 100),  # => 100
+            nn.Linear(128, 100),  # => 100
         )
 
         self.linear1 = nn.Linear(self.size, self.size)
@@ -122,7 +123,7 @@ class Discriminator(nn.Module):
     def forward(self, x):
         batch_size = x.shape[0]
         # time distribute encode
-        x = x.reshape(batch_size * self.length * 2, 1, 32, 32)  # => 1 x 32 x 32
+        x = x.reshape(batch_size * self.length * 2, 1, 16, 16)  # => 1 x 16 x 16
         x = self.encoder(x)  # => 100
         x = x.reshape(batch_size, self.length * 2 * 100)  # => length x 2 x 100
 
@@ -165,7 +166,7 @@ def fit_q(
     D = Discriminator(length)
     adversarial_loss = nn.BCELoss()
     d_optimizer = optim.Adam(D.parameters(), lr=1e-5)
-    g_optimizer = optim.Adam(G.parameters(), lr=1e-5)
+    g_optimizer = optim.Adam(G.parameters(), lr=1e-3)
     if debug:
         print(G)
         print(D)
@@ -173,8 +174,10 @@ def fit_q(
         G.cuda()
         D.cuda()
 
-    real_label = torch.ones(batch_size, 1, requires_grad=False) * 0.7
-    fake_label = torch.ones(batch_size, 1, requires_grad=False) * 0.3
+    real_label = torch.ones(batch_size, 1, requires_grad=False)
+    fake_label = torch.zeros(batch_size, 1, requires_grad=False)
+    # real_label = torch.ones(batch_size, 1, requires_grad=False) * 0.7
+    # fake_label = torch.ones(batch_size, 1, requires_grad=False) * 0.3
 
     FID_all = []
     loss_all = []
@@ -198,7 +201,7 @@ def fit_q(
     )  # => all_length x 2 x 1 x width x height
 
     for i in range(n_step):
-        print(i, n_step)
+        # print(i, n_step)
         # ====================
         # Discriminatorの学習
         # ====================
@@ -242,20 +245,23 @@ def fit_q(
         real_x = sample_x(
             batch_size, state_list, length
         )  # => length x 2 x 1 x width x height
-        # print(real_x[0, 0, 0, 0, :, :])
-        # print(fake_x[0, 0, 0, 0, :, :])
+        if i % 100 == 0:
+            torch.set_printoptions(precision=1, sci_mode=False, linewidth=200)
+            print(real_x[0, 0, 0, 0, :, :])
+            print(real_x[0, 1, 0, 0, :, :])
+            print(fake_x[0, 0, 0, 0, :, :].detach())
+            print(fake_x[0, 1, 0, 0, :, :].detach())
+            torch.set_printoptions(profile="default")
 
         # Discriminatorを騙すように学習
         D_fake = D(fake_x)
         D_real = D(real_x)
-        # print(D_real[:5])
-        # print(D_fake[:5])
         if mode == "GAN":
             fake_loss = adversarial_loss(D_fake, real_label)
             real_loss = adversarial_loss(D_real, fake_label)
             # print(fake_loss)
             # print(real_loss)
-            g_loss = real_loss + fake_loss
+            g_loss = fake_loss + real_loss
         elif mode == "f-GAN:KL":
             fake_loss = -f_star(D_fake).mean()
             real_loss = D_real.mean()
