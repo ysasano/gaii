@@ -16,7 +16,7 @@ def load_model():
     model_fn = partial(
         gaii_joint_cnn.fit_q,
         use_time_invariant_term=True,
-        length=3,
+        length=1,
     )
     return model_fn
 
@@ -37,7 +37,7 @@ def normalize(image):
 
 
 def experiment_gaii():
-    n_step = 1000 if mini else 10000
+    n_step = 100 if mini else 10000
     # GAIIの算出
     model_fn = load_model()
     images = load_images()

@@ -166,7 +166,7 @@ def fit_q(
     D = Discriminator(length)
     adversarial_loss = nn.BCELoss()
     d_optimizer = optim.Adam(D.parameters(), lr=1e-5)
-    g_optimizer = optim.Adam(G.parameters(), lr=1e-3)
+    g_optimizer = optim.Adam(G.parameters(), lr=1e-5)
     if debug:
         print(G)
         print(D)
