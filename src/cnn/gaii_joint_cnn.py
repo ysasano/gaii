@@ -134,21 +134,24 @@ class Discriminator(nn.Module):
 
 
 def sample_x(batch_size, state_list, length):
-    stream_num = state_list.shape[0]
-    stream_idxes = rng.choice(stream_num, batch_size)
-    # all_batch_size x all_length x 2 x 1 x w x h => batch_size x all_length x 2 x 1 x width x height
+    stream_size = state_list.shape[0]
+    stream_length = state_list.shape[1]
+
+    # stream_size個の動画からランダムにbatch_size個サンプリング
+    stream_idxes = rng.choice(stream_size, batch_size)
+    # stream_size x stream_length x 2 x 1 x w x h => batch_size x stream_length x 2 x 1 x w x h
     seq = state_list[stream_idxes, ...]
 
-    idx = rng.choice(state_list.shape[1] - length - 1, batch_size)
-    idx_span = np.array([np.arange(i, i + length) for i in idx])
-    # batch_size x all_length x 2 x 1 x w x h => batch_size x length x 2 x 1 x w x h
+    # それぞれのサンプルについて、stream_length長の動画からランダムにlength長の区間を抽出
+    begin_idx = rng.choice(stream_length - length - 1, batch_size)
+    idx_span = np.array([np.arange(b, b + length) for b in begin_idx])
+    # batch_size x stream_length x 2 x 1 x w x h => batch_size x length x 2 x 1 x w x h
     seq = np.stack([seq[i, idx_span[i], ...] for i in range(batch_size)], axis=0)
     return to_torch(seq)
 
 
 def sample_z(batch_size, length):
-    z = torch.randn(batch_size * length, 200)
-    return z.view(batch_size, length, 200)  # => length x 200
+    return torch.randn(batch_size, length, 200)  # => length x 200
 
 
 def fit_q(
@@ -187,18 +190,10 @@ def fit_q(
     f_star = lambda t: torch.exp(t - 1)
     state_list = torch.stack(
         [to_torch(images1), to_torch(images2)], dim=2
-    )  # all_length x width x height => all_length x 2 x width x height
-    state_list = torch.reshape(
-        state_list,
-        [
-            state_list.shape[0],
-            state_list.shape[1],
-            state_list.shape[2],
-            1,
-            state_list.shape[3],
-            state_list.shape[4],
-        ],
-    )  # => all_length x 2 x 1 x width x height
+    )  # stream_size x stream_length x w x h => stream_size x stream_length x 2 x w x h
+    state_list = torch.unsqueeze(
+        state_list, 3
+    )  # => stream_size x stream_length x 2 x 1 x w x h
 
     for i in range(n_step):
         # print(i, n_step)
@@ -212,9 +207,7 @@ def fit_q(
         z2 = sample_z(batch_size, length)  # => length x 200
         fake_x = G(z1, z2)
         # real xの生成
-        real_x = sample_x(
-            batch_size, state_list, length
-        )  # => 2 x length x width x height
+        real_x = sample_x(batch_size, state_list, length)  # => length x 2 x 1 x w x h
 
         # リアルのサンプルとニセのサンプルを正しく見分けられるように学習
         D_fake = D(fake_x.detach())
@@ -242,9 +235,7 @@ def fit_q(
         fake_x = G(z1, z2)
 
         # real xの生成
-        real_x = sample_x(
-            batch_size, state_list, length
-        )  # => length x 2 x 1 x width x height
+        real_x = sample_x(batch_size, state_list, length)  # => length x 2 x 1 x w x h
         if i % 100 == 0:
             torch.set_printoptions(precision=1, sci_mode=False, linewidth=200)
             print(real_x[0, 0, 0, 0, :, :])
