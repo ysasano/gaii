@@ -33,6 +33,7 @@ def save_and_visualize_model(model, model_dir):
 
 
 def normalize(image):
+    """(-1, 1)に正規化"""
     return (image / 255.0 * 2) - 1
 
 

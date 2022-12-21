@@ -14,7 +14,7 @@ train_dataset = datasets.MNIST(
 
 
 def get_images(batch_size, length, image_size, xs, ys, digit1, digit2, digit_size, es):
-    image = np.ones((batch_size, length, image_size, image_size), dtype=np.uint8) * 255
+    image = np.zeros((batch_size, length, image_size, image_size), dtype=np.uint8)
     for batch_idx in range(batch_size):
         for length_idx in range(length):
             x = xs[length_idx, batch_idx]
@@ -31,11 +31,12 @@ def get_images(batch_size, length, image_size, xs, ys, digit1, digit2, digit_siz
                     ].shape,
                     es[length_idx, batch_idx],
                 )
-            # 白地に黒なので255から引く
+
+            # 画像を書き込む
             image[batch_idx, length_idx, x : x + digit_size, y : y + digit_size] = (
-                255 - digit1[batch_idx]
+                digit1[batch_idx]
                 if np.isclose(es[length_idx, batch_idx], 1.0)
-                else 255 - digit2[batch_idx]
+                else digit2[batch_idx]
             )
     return image
 
