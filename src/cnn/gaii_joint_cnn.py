@@ -5,6 +5,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from PIL import Image
 
 from utility import (
     calc_FID,
@@ -154,6 +155,29 @@ def sample_z(batch_size, length):
     return torch.randn(batch_size, length, 200)  # => length x 200
 
 
+def save_gif(images, i):
+    # images: batch_size x length x 2 x 1 x w x h
+    images = (images + 1) / 2 * 255
+    size = images.shape[4]
+
+    images1 = images[0, :, 0, 0, :, :]
+    images2 = images[0, :, 1, 0, :, :]
+    images_cat = np.concatenate((images1, images2), axis=2)
+    images_flat = np.reshape(images_cat, (-1, size, size * 2))
+
+    images_pil = []
+    for image in images_flat:
+        images_pil.append(Image.fromarray(image).convert("P"))
+    images_pil[0].save(
+        "data/generate_image_{}.gif".format(i),
+        save_all=True,
+        append_images=images_pil[1:],
+        optimize=False,
+        duration=40,
+        loop=0,
+    )
+
+
 def fit_q(
     images1,
     images2,
@@ -239,9 +263,9 @@ def fit_q(
         if i % 100 == 0:
             torch.set_printoptions(precision=1, sci_mode=False, linewidth=200)
             print(real_x[0, 0, 0, 0, :, :])
-            print(real_x[0, 1, 0, 0, :, :])
+            # print(real_x[0, 1, 0, 0, :, :])
             print(fake_x[0, 0, 0, 0, :, :].detach())
-            print(fake_x[0, 1, 0, 0, :, :].detach())
+            # print(fake_x[0, 1, 0, 0, :, :].detach())
             torch.set_printoptions(profile="default")
 
         # Discriminatorを騙すように学習
@@ -287,6 +311,9 @@ def fit_q(
             FID_all.append((i, calc_FID(from_torch(fake_x), from_torch(real_x))))
             js_all.append((i, js, js_ema))
             loss_all.append((i, d_loss.item(), g_loss.item()))
+
+        if i % 1000 == 0:
+            save_gif(fake_x.detach().numpy(), i)
 
     return {
         "G": G,
