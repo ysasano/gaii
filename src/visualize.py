@@ -6,6 +6,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import gaii_cond_linear
 import torch
+import visualize
 
 
 def imshow(model, datadir=None):  # show_matrix
@@ -113,11 +114,33 @@ def loss_all(model, datadir=None):
     plt.close()
 
 
+def d_loss_std_all(model, datadir=None):
+    plt.figure()
+    model["d_loss_std_all"].plot()
+    if datadir:
+        model["d_loss_std_all"].to_pickle(datadir.joinpath(f"d_loss_std_all.pkl"))
+        plt.savefig(datadir.joinpath("d_loss_std_all.png"))
+    plt.clf()
+    plt.close()
+
+
+def grad_norm_all(model, datadir=None):
+    plt.figure()
+    model["grad_norm_all"].plot()
+    if datadir:
+        model["grad_norm_all"].to_pickle(datadir.joinpath(f"grad_norm_all.pkl"))
+        plt.savefig(datadir.joinpath("grad_norm_all.png"))
+    plt.clf()
+    plt.close()
+
+
 def visualize_model(model, datadir=None):
     failure_check(model, datadir)
     js_all(model, datadir)
     loss_all(model, datadir)
     FID_all(model, datadir)
+    d_loss_std_all(model, datadir)
+    grad_norm_all(model, datadir)
 
 
 def plot_result_all(pd_result, datadir=None):

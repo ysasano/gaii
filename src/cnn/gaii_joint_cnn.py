@@ -209,8 +209,11 @@ def fit_q(
     FID_all = []
     loss_all = []
     js_all = []
+    d_loss_std_all = []
+    grad_norm_all = []
     failure_check = []
     js_ema = None
+    d_loss_ema = None
     f_star = lambda t: torch.exp(t - 1)
     state_list = torch.stack(
         [to_torch(images1), to_torch(images2)], dim=2
@@ -290,11 +293,23 @@ def fit_q(
         elif mode == "f-GAN:KL":
             js = -d_loss.item()
 
+        # JSのEMA
         if js_ema is None:
             js_ema = js
         else:
             alpha = 0.001
             js_ema = alpha * js + (1 - alpha) * js_ema
+
+        # Dlossの分散
+        if d_loss_ema is None:
+            d_loss_ema = d_loss.item()
+            d_loss_std = 0
+        else:
+            alpha = 0.001
+            d_loss_ema = alpha * d_loss.item() + (1 - alpha) * d_loss_ema
+            d_loss_std = (
+                alpha * (d_loss.item() - d_loss_ema) ** 2 + (1 - alpha) * d_loss_std
+            )
 
         # 崩壊モードチェック
         g_score = D_fake.mean()
@@ -311,6 +326,18 @@ def fit_q(
             FID_all.append((i, calc_FID(from_torch(fake_x), from_torch(real_x))))
             js_all.append((i, js, js_ema))
             loss_all.append((i, d_loss.item(), g_loss.item()))
+            d_loss_std_all.append((i, d_loss_std))
+
+            # 勾配のノルム
+            grad_norm = 0
+            for d in D.parameters():
+                param_norm = d.grad.data.norm(2)
+                grad_norm += param_norm.item() ** 2
+            for g in G.parameters():
+                param_norm = g.grad.data.norm(2)
+                grad_norm += param_norm.item() ** 2
+            grad_norm = grad_norm ** (1.0 / 2)
+            grad_norm_all.append((i, grad_norm))
 
         if i % 1000 == 0:
             save_gif(fake_x.detach().numpy(), i)
@@ -328,5 +355,11 @@ def fit_q(
         "loss_all": pd.DataFrame(loss_all, columns=["i", "d_loss", "g_loss"]).set_index(
             "i"
         ),
+        "d_loss_std_all": pd.DataFrame(
+            d_loss_std_all, columns=["i", "d_loss_std_all"]
+        ).set_index("i"),
+        "grad_norm_all": pd.DataFrame(
+            grad_norm_all, columns=["i", "grad_norm_all"]
+        ).set_index("i"),
         "js": js_ema,
     }
