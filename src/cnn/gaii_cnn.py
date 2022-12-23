@@ -1,3 +1,4 @@
+import datetime
 from functools import partial
 from pathlib import Path
 
@@ -10,6 +11,12 @@ from functools import partial
 import numpy as np
 
 mini = False
+
+
+def create_experiment_dir(now, name):
+    experiment_dir = Path("data/exp_gaii_cnn") / now / name
+    experiment_dir.mkdir(parents=True, exist_ok=True)
+    return experiment_dir
 
 
 def load_model():
@@ -39,6 +46,9 @@ def normalize(image):
 
 def experiment_gaii():
     n_step = 100 if mini else 10000
+    now = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    data_dir1 = create_experiment_dir(now, "gaii_cnn1")
+    data_dir2 = create_experiment_dir(now, "gaii_cnn2")
     # GAIIの算出
     model_fn = load_model()
     images = load_images()
@@ -47,11 +57,12 @@ def experiment_gaii():
         normalize(images["images2"]),
         n_step=n_step,
         debug=True,
+        data_dir=data_dir1,
     )
     # 学習結果の可視化・保存
     save_and_visualize_model(
         model=result,
-        model_dir=Path("data/gaii_cnn1"),
+        model_dir=data_dir1,
     )
 
     result = model_fn(
@@ -59,12 +70,13 @@ def experiment_gaii():
         normalize(images["images3"]),
         n_step=n_step,
         debug=True,
+        data_dir=data_dir2,
     )
 
     # 学習結果の可視化・保存
     save_and_visualize_model(
         model=result,
-        model_dir=Path("data/gaii_cnn2"),
+        model_dir=data_dir2,
     )
 
 

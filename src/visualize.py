@@ -79,6 +79,7 @@ def failure_check(model, datadir=None):
     model["failure_check"].plot(ylim=[0, 1])
     if datadir:
         model["failure_check"].to_pickle(datadir.joinpath(f"failure_check.pkl"))
+        model["failure_check"].to_csv(datadir.joinpath(f"failure_check.tsv"), sep="\t")
         plt.savefig(datadir.joinpath("failure_check.png"))
     plt.clf()
     plt.close()
@@ -89,6 +90,7 @@ def js_all(model, datadir=None):
     model["js_all"].plot()
     if datadir:
         model["js_all"].to_pickle(datadir.joinpath(f"js.pkl"))
+        model["js_all"].to_csv(datadir.joinpath(f"js.tsv"), sep="\t")
         plt.savefig(datadir.joinpath("js.png"))
     plt.clf()
     plt.close()
@@ -99,6 +101,7 @@ def FID_all(model, datadir=None):
     model["FID_all"].plot()
     if datadir:
         model["FID_all"].to_pickle(datadir.joinpath(f"FID.pkl"))
+        model["FID_all"].to_csv(datadir.joinpath(f"FID_all.tsv"), sep="\t")
         plt.savefig(datadir.joinpath("FID.png"))
     plt.clf()
     plt.close()
@@ -109,6 +112,7 @@ def loss_all(model, datadir=None):
     model["loss_all"].plot()
     if datadir:
         model["loss_all"].to_pickle(datadir.joinpath(f"loss.pkl"))
+        model["loss_all"].to_csv(datadir.joinpath(f"loss.tsv"), sep="\t")
         plt.savefig(datadir.joinpath("loss.png"))
     plt.clf()
     plt.close()
@@ -119,6 +123,9 @@ def d_loss_std_all(model, datadir=None):
     model["d_loss_std_all"].plot()
     if datadir:
         model["d_loss_std_all"].to_pickle(datadir.joinpath(f"d_loss_std_all.pkl"))
+        model["d_loss_std_all"].to_csv(
+            datadir.joinpath(f"d_loss_std_all.tsv"), sep="\t"
+        )
         plt.savefig(datadir.joinpath("d_loss_std_all.png"))
     plt.clf()
     plt.close()
@@ -129,6 +136,7 @@ def grad_norm_all(model, datadir=None):
     model["grad_norm_all"].plot()
     if datadir:
         model["grad_norm_all"].to_pickle(datadir.joinpath(f"grad_norm_all.pkl"))
+        model["grad_norm_all"].to_csv(datadir.joinpath(f"grad_norm_all.tsv"), sep="\t")
         plt.savefig(datadir.joinpath("grad_norm_all.png"))
     plt.clf()
     plt.close()

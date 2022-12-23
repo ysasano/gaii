@@ -155,7 +155,7 @@ def sample_z(batch_size, length):
     return torch.randn(batch_size, length, 200)  # => length x 200
 
 
-def save_gif(images, i):
+def save_gif(images, i, data_dir):
     # images: batch_size x length x 2 x 1 x w x h
     images = (images + 1) / 2 * 255
     size = images.shape[4]
@@ -169,7 +169,7 @@ def save_gif(images, i):
     for image in images_flat:
         images_pil.append(Image.fromarray(image).convert("P"))
     images_pil[0].save(
-        "data/generate_image_{}.gif".format(i),
+        data_dir / "generate_image_{}.gif".format(i),
         save_all=True,
         append_images=images_pil[1:],
         optimize=False,
@@ -186,7 +186,10 @@ def fit_q(
     length=4,
     use_time_invariant_term=False,
     debug=False,
+    data_dir=None,
 ):
+    if data_dir is None:
+        raise TypeError("データディレクトリの指定が不正です")
     mode = "GAN"
     # mode = "f-GAN:KL"
     G = Generator(length, use_time_invariant_term)
@@ -340,7 +343,7 @@ def fit_q(
             grad_norm_all.append((i, grad_norm))
 
         if i % 1000 == 0:
-            save_gif(fake_x.detach().numpy(), i)
+            save_gif(fake_x.detach().numpy(), i, data_dir)
 
     return {
         "G": G,
