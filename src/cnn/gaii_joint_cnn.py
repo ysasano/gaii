@@ -103,23 +103,21 @@ class Discriminator(nn.Module):
         self.length = length
         self.size = length * 2 * 100
         self.activation = nn.ReLU()
+        ndf = 64
         self.encoder = nn.Sequential(
-            nn.Conv2d(
-                1, 2, kernel_size=1, stride=1, padding=0, bias=False
-            ),  # => 2 x 16 x 16
-            nn.BatchNorm2d(2),
-            nn.LeakyReLU(alpha),
-            nn.Conv2d(
-                2, 2, kernel_size=4, stride=2, padding=1, bias=False
-            ),  # => 2 x 8 x 8
-            nn.LeakyReLU(alpha),
-            nn.Flatten(),
-            nn.Linear(128, 100),  # => 100
+            nn.Conv2d(1, ndf, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ndf),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (ndf) x 16 x 16
+            nn.Conv2d(ndf, ndf * 2, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ndf * 2),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (ndf*2) x 8 x 8
+            nn.Conv2d(ndf * 2, 1, 4, 2, bias=False),
+            nn.Sigmoid(),
         )
 
-        self.linear1 = nn.Linear(self.size, self.size)
-        self.dropout = nn.Dropout(p=0.2)
-        self.linear2 = nn.Linear(self.size, 1)
+        self.linear = nn.Linear(self.length * 2, 1)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
@@ -127,12 +125,10 @@ class Discriminator(nn.Module):
         # time distribute encode
         x = x.reshape(batch_size * self.length * 2, 1, 16, 16)  # => 1 x 16 x 16
         x = self.encoder(x)  # => 100
-        x = x.reshape(batch_size, self.length * 2 * 100)  # => length x 2 x 100
+        x = x.reshape(batch_size, self.length * 2)  # => length x 2 x 100
 
         # joint_dense
-        x = self.activation(self.linear1(x))
-        x = self.dropout(x)
-        return self.sigmoid(self.linear2(x))
+        return self.sigmoid(self.linear(x))
 
 
 def sample_x(batch_size, state_list, length):
