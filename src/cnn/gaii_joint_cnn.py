@@ -34,21 +34,22 @@ class Generator(nn.Module):
         self.use_time_invariant_term = use_time_invariant_term
         self.length = length
         latent_size = 100
+        nc = 1
+        nz = 100
+        ngf = 64
 
         # https://kikaben.com/dcgan-mnist/
         self.decoder = nn.Sequential(
-            nn.Linear(latent_size, 128),  # => 128
-            nn.BatchNorm1d(128),
-            nn.LeakyReLU(0.01),
-            Reshape(2, 8, 8),  # => 2 x 8 x 8
-            nn.ConvTranspose2d(
-                2, 2, kernel_size=4, stride=2, padding=1, bias=False
-            ),  # => 2 x 16 x 16
-            # nn.BatchNorm2d(2),
-            nn.LeakyReLU(0.01),
-            nn.ConvTranspose2d(
-                2, 1, kernel_size=1, stride=1, padding=0, bias=False
-            ),  # => 1 x 16 x 16
+            Reshape(nz, 1, 1),
+            nn.ConvTranspose2d(nz, ngf * 2, 4, 1, 0, bias=False),
+            nn.BatchNorm2d(ngf * 2),
+            nn.ReLU(True),
+            # state size. (ngf*2) x 4 x 4
+            nn.ConvTranspose2d(ngf * 2, ngf, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ngf),
+            nn.ReLU(True),
+            # state size. (ngf) x 8 x 8
+            nn.ConvTranspose2d(ngf, nc, 4, 2, 1, bias=False),
         )
 
         z1_size = length * latent_size
