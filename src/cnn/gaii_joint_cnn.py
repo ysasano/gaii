@@ -165,29 +165,31 @@ def save_gif(images, i, data_dir):
     # images: batch_size x length x 2 x 1 x w x h
     images = (images + 1) / 2 * 255
     size = images.shape[4]
+    batch_size = images.shape[0]
 
-    images1 = images[0, :, 0, 0, :, :]
-    images2 = images[0, :, 1, 0, :, :]
-    images_cat = np.concatenate((images1, images2), axis=2)
-    images_flat = np.reshape(images_cat, (-1, size, size * 2))
+    for b in range(batch_size):
+        images1 = images[b, :, 0, 0, :, :]
+        images2 = images[b, :, 1, 0, :, :]
+        images_cat = np.concatenate((images1, images2), axis=2)
+        images_flat = np.reshape(images_cat, (-1, size, size * 2))
 
-    images_pil = []
-    for image in images_flat:
-        images_pil.append(Image.fromarray(image).convert("P"))
-    images_pil[0].save(
-        data_dir / "generate_image_{}.gif".format(i),
-        save_all=True,
-        append_images=images_pil[1:],
-        optimize=False,
-        duration=40,
-        loop=0,
-    )
+        images_pil = []
+        for image in images_flat:
+            images_pil.append(Image.fromarray(image).convert("P"))
+        images_pil[0].save(
+            data_dir / "generate_image_{}_batch_{}.gif".format(i, b),
+            save_all=True,
+            append_images=images_pil[1:],
+            optimize=False,
+            duration=40,
+            loop=0,
+        )
 
 
 def fit_q(
     images1,
     images2,
-    batch_size=32,
+    batch_size=20,
     n_step=20000,
     length=4,
     use_time_invariant_term=False,
@@ -351,7 +353,8 @@ def fit_q(
             grad_norm_all.append((i, grad_norm))
 
         if i % 1000 == 0:
-            save_gif(fake_x.detach().numpy(), i, data_dir)
+            save_gif(real_x.detach().numpy(), "real_{}".format(i), data_dir)
+            save_gif(fake_x.detach().numpy(), "fake_{}".format(i), data_dir)
 
     return {
         "G": G,

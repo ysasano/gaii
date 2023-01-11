@@ -23,7 +23,7 @@ def load_model():
     model_fn = partial(
         gaii_joint_cnn.fit_q,
         use_time_invariant_term=True,
-        length=1,
+        length=8,
     )
     return model_fn
 
